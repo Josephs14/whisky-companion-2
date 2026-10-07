@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false;
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -104,12 +104,23 @@ function bottleCard(b,w){
    <div class="bottleFoot"><span>${esc(b['Bottle ID'])}</span><span>View ›</span></div></div></article>`;
 }
 function bottleDetail(b,w){
+ const id=String(b['Bottle ID']),s=state();
+ if(bottleView==='history'){
+  const life=s.bottleLifecycle.filter(x=>String(x['Bottle ID'])===id),fills=s.fillHistory.filter(x=>String(x['Bottle ID'])===id),cons=s.consumptionEvents.filter(x=>String(x['Bottle ID'])===id),drams=s.drams.filter(x=>String(x['Bottle ID'])===id);
+  const events=[...life.map(x=>({date:x['Event Date'],type:x['Event Type']||'Lifecycle',note:x['Source / Note']||((x['From Status']||'')+' → '+(x['To Status']||''))})),...fills.map(x=>({date:x['Event Date'],type:'Fill '+x['Fill %']+'%',note:x['Source / Note']||''})),...cons.map(x=>({date:x['Event Date'],type:x['Event Type']||'Consumption',note:x['Note']||''})),...drams.map(x=>({date:x['Tasting Date'],type:'Tasting'+(x['Score']!==''?' · '+x['Score']:'') ,note:x['Free Notes']||''}))].sort((a,b)=>dateValue(b.date)-dateValue(a.date));
+  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">History</div><span></span></div><section class="card list">${events.length?events.map(x=>`<div class="row"><div class="grow"><div class="name">${esc(x.type)}</div><div class="meta">${esc(x.date||'Date unknown')}${x.note?' · '+esc(x.note):''}</div></div></div>`).join(''):'<div class="placeholder">No history recorded for this bottle.</div>'}</section>`;
+ }
+ if(bottleView==='edit'){
+  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div><section class="card setup"><label>Status<select id="editStatus"><option ${b['Status']==='Sealed'?'selected':''}>Sealed</option><option ${b['Status']==='Open'?'selected':''}>Open</option><option ${b['Status']==='Finished'?'selected':''}>Finished</option></select></label><label>Current fill %<input id="editFill" type="number" min="0" max="100" value="${esc(b['Current Fill %'])}"></label><label>Notes<textarea id="editNotes" rows="5">${esc(b['Notes']||'')}</textarea></label><button class="primary" id="saveBottleEdit">Save Changes</button><div class="meta" style="margin-top:10px">Status changes use the controlled bottle operations so lifecycle and fill history remain consistent.</div></section>`;
+ }
+ if(bottleView==='taste'){
+  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Taste Bottle</div><span></span></div><section class="detailHero card"><div class="detailBottle">🥃</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||'Bottle')}</h1><div class="meta">Linked to ${esc(id)}</div></div></section><section class="card setup"><label>Score<input id="tasteScore" type="number" min="0" max="100" step="0.5" placeholder="Optional"></label><label>Nose<textarea id="tasteNose" rows="2"></textarea></label><label>Palate<textarea id="tastePalate" rows="2"></textarea></label><label>Finish<textarea id="tasteFinish" rows="2"></textarea></label><label>Notes<textarea id="tasteNotes" rows="3"></textarea></label><button class="primary" id="saveBottleTaste">Save Tasting</button></section>`;
+ }
  const fields=[['Status',b['Status']],['Current fill',b['Current Fill %']!==''&&b['Current Fill %']!=null?b['Current Fill %']+'%':'—'],['Age',w['Age Statement']||w['Age Years']],['ABV',w['ABV %']!==''&&w['ABV %']!=null?w['ABV %']+'%':'—'],['Region',w['Region']],['Cask / Maturation',w['Cask Type / Maturation']],['Acquired',b['Acquisition Date']],['Source',b['Shop / Source']],['Bottle ID',b['Bottle ID']],['Whisky ID',b['Whisky ID']]];
  return `<div class="topbar"><button class="backBtn" id="backCollection">‹ Collection</button><button class="iconBtn" id="detailRefresh">↻</button></div>
  <section class="detailHero card"><div class="detailBottle">🍾</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||w['Series / Collection']||'Bottle')}</h1><span class="pill ${String(b['Status']||'').toLowerCase()}">${esc(b['Status']||'Unknown')}</span></div></section>
- <div class="detailActions"><button>✎<span>Edit</span></button><button>🥃<span>Taste</span></button><button>▥<span>History</span></button></div>
- <div class="sectionHead"><h2>Bottle Details</h2></div>
- <section class="card detailList">${fields.filter(x=>x[1]!==''&&x[1]!=null).map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
+ <div class="detailActions four"><button id="editBottle">✎<span>Edit</span></button><button id="tasteBottle">🥃<span>Taste</span></button><button id="historyBottle">▥<span>History</span></button><button id="deleteBottle" class="dangerAction">⌫<span>Delete</span></button></div>
+ <div class="sectionHead"><h2>Bottle Details</h2></div><section class="card detailList">${fields.filter(x=>x[1]!==''&&x[1]!=null).map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
  ${b['Notes']?`<div class="sectionHead"><h2>Notes</h2></div><section class="card notes">${esc(b['Notes'])}</section>`:''}`;
 }
 
@@ -136,10 +147,37 @@ function bind(){
  const cf=document.getElementById('clearFilters');if(cf)cf.onclick=()=>{Object.keys(collectionFilters).forEach(k=>collectionFilters[k]='');render()};
  const cs=document.getElementById('collectionSearch');if(cs)cs.oninput=e=>{collectionQuery=e.target.value;render();const n=document.getElementById('collectionSearch');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}};
  const clear=document.getElementById('clearSearch');if(clear)clear.onclick=()=>{collectionQuery='';render()};
- document.querySelectorAll('[data-bottle-id]').forEach(b=>b.onclick=()=>{selectedBottleId=b.dataset.bottleId;render();window.scrollTo(0,0)});
- const back=document.getElementById('backCollection');if(back)back.onclick=()=>{selectedBottleId=null;render()};
+ document.querySelectorAll('[data-bottle-id]').forEach(b=>b.onclick=()=>{selectedBottleId=b.dataset.bottleId;bottleView='detail';render();window.scrollTo(0,0)});
+ const back=document.getElementById('backCollection');if(back)back.onclick=()=>{selectedBottleId=null;bottleView='detail';render()};
+ const backDetail=document.getElementById('backBottleDetail');if(backDetail)backDetail.onclick=()=>{bottleView='detail';render()};
+ const editBottle=document.getElementById('editBottle');if(editBottle)editBottle.onclick=()=>{bottleView='edit';render()};
+ const tasteBottle=document.getElementById('tasteBottle');if(tasteBottle)tasteBottle.onclick=()=>{bottleView='taste';render()};
+ const historyBottle=document.getElementById('historyBottle');if(historyBottle)historyBottle.onclick=()=>{bottleView='history';render()};
+ const delBottle=document.getElementById('deleteBottle');if(delBottle)delBottle.onclick=()=>{if(confirm('Delete is not enabled yet because the API has no controlled DELETE_BOTTLE operation. No data has been changed.')){}};
+ const saveEdit=document.getElementById('saveBottleEdit');if(saveEdit)saveEdit.onclick=saveBottleChanges;
+ const saveTaste=document.getElementById('saveBottleTaste');if(saveTaste)saveTaste.onclick=saveBottleTasting;
  const settings=document.getElementById('settings');if(settings)settings.onclick=()=>{WC2.setToken('');render()};
  const trip=document.getElementById('tripCard');if(trip)trip.onclick=()=>{tab='Trip';render()};
+}
+async function saveBottleChanges(){
+ const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;
+ const status=document.getElementById('editStatus').value,fill=num(document.getElementById('editFill').value),notes=document.getElementById('editNotes').value;
+ try{
+  if(status!==b['Status']){
+   if(status==='Open')await WC2.api('OPEN_BOTTLE',{bottleId:b['Bottle ID'],openDate:new Date().toISOString().slice(0,10)});
+   else if(status==='Finished')await WC2.api('FINISH_BOTTLE',{bottleId:b['Bottle ID'],finishedDate:new Date().toISOString().slice(0,10)});
+   else {toast('Changing a bottle back to Sealed is not exposed by the controlled API.');return}
+  }
+  if(status==='Open'&&fill!==null&&fill!==num(b['Current Fill %']))await WC2.api('CHANGE_FILL',{bottleId:b['Bottle ID'],fillPercent:fill,eventDate:new Date().toISOString().slice(0,10)});
+  if(notes!==String(b['Notes']||'')){toast('Notes editing needs a dedicated bottle update API action; status/fill changes were saved if requested.')}
+  await WC2.refresh();bottleView='detail';render();toast('Bottle updated');
+ }catch(e){toast('Update failed: '+e.message)}
+}
+async function saveBottleTasting(){
+ const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;
+ const score=num(document.getElementById('tasteScore').value);
+ const record={'Whisky ID':b['Whisky ID'],'Bottle ID':b['Bottle ID'],'Tasting Context':'Standalone','Tasting Date':new Date().toISOString().slice(0,10),'Score':score===null?'':score,'Nose':document.getElementById('tasteNose').value,'Palate':document.getElementById('tastePalate').value,'Finish Character':document.getElementById('tasteFinish').value,'Free Notes':document.getElementById('tasteNotes').value};
+ try{await WC2.api('CREATE_DRAM',{record});await WC2.refresh();bottleView='detail';render();toast('Tasting saved')}catch(e){toast('Tasting failed: '+e.message)}
 }
 async function doRefresh(){
  document.body.classList.add('refreshing');

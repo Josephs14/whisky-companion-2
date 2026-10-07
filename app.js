@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='All', collectionQuery='', selectedBottleId=null;
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false;
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -46,34 +46,48 @@ function home(){
 
 function collection(){
  const s=state(),wi=new Map(s.whiskies.map(w=>[String(w['Whisky ID']),w]));
- const statuses=['All','Open','Sealed','Finished'];
- const counts={All:s.bottles.length};
- statuses.slice(1).forEach(x=>counts[x]=s.bottles.filter(b=>String(b['Status']||'').toLowerCase()===x.toLowerCase()).length);
- const q=collectionQuery.trim().toLowerCase();
- const filtered=s.bottles.filter(b=>{
-   if(collectionFilter!=='All'&&String(b['Status']||'').toLowerCase()!==collectionFilter.toLowerCase())return false;
-   if(!q)return true;
-   const w=wi.get(String(b['Whisky ID']))||{};
-   return [b['Bottle ID'],w['Distillery'],w['Brand / Producer'],w['Expression'],w['Region'],w['Country'],w['Age Statement'],w['ABV %']].some(v=>String(v||'').toLowerCase().includes(q));
- }).sort((a,b)=>{
-   const wa=wi.get(String(a['Whisky ID']))||{},wb=wi.get(String(b['Whisky ID']))||{};
-   return String(wa['Distillery']||wa['Brand / Producer']||'').localeCompare(String(wb['Distillery']||wb['Brand / Producer']||''))||String(wa['Expression']||'').localeCompare(String(wb['Expression']||''));
- });
- if(selectedBottleId){
-   const b=s.bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));
-   if(b)return bottleDetail(b,wi.get(String(b['Whisky ID']))||{});
-   selectedBottleId=null;
- }
- const current=s.bottles.filter(b=>String(b['Status']||'').toLowerCase()!=='finished').length;
+ const statuses=['Current','Open','Sealed','Finished'];
+ const isStatus=(b,x)=>String(b['Status']||'').toLowerCase()===x.toLowerCase();
+ const counts={Current:s.bottles.filter(b=>isStatus(b,'Open')||isStatus(b,'Sealed')).length,Open:s.bottles.filter(b=>isStatus(b,'Open')).length,Sealed:s.bottles.filter(b=>isStatus(b,'Sealed')).length,Finished:s.bottles.filter(b=>isStatus(b,'Finished')).length};
+ const base=s.bottles.filter(b=>collectionFilter==='Current'?(isStatus(b,'Open')||isStatus(b,'Sealed')):isStatus(b,collectionFilter));
+ const values=field=>[...new Set(base.map(b=>String((wi.get(String(b['Whisky ID']))||{})[field]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+ const q=collectionQuery.trim().toLowerCase(),f=collectionFilters;
+ const filtered=base.filter(b=>{
+   const w=wi.get(String(b['Whisky ID']))||{}, age=num(w['Age Years']||w['Age Statement']), abv=num(w['ABV %']), fill=num(b['Current Fill %']);
+   if(q&&![b['Bottle ID'],w['Distillery'],w['Brand / Producer'],w['Expression'],w['Region'],w['Country'],w['Age Statement'],w['ABV %']].some(v=>String(v||'').toLowerCase().includes(q)))return false;
+   if(f.distillery&&String(w['Distillery']||'')!==f.distillery)return false;
+   if(f.region&&String(w['Region']||'')!==f.region)return false;
+   if(f.country&&String(w['Country']||'')!==f.country)return false;
+   if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;
+   if(f.cask&&!String(w['Cask Type / Maturation']||'').toLowerCase().includes(f.cask.toLowerCase()))return false;
+   if(f.peated&&String(w['Peated']||'').toLowerCase()!==f.peated.toLowerCase())return false;
+   if(f.age==='NAS'&&age!==null)return false;if(f.age==='0-9'&&(age===null||age>9))return false;if(f.age==='10-17'&&(age===null||age<10||age>17))return false;if(f.age==='18+'&&(age===null||age<18))return false;
+   if(f.abv==='under46'&&(abv===null||abv>=46))return false;if(f.abv==='46-50'&&(abv===null||abv<46||abv>50))return false;if(f.abv==='over50'&&(abv===null||abv<=50))return false;
+   if(f.fill==='low'&&(fill===null||fill>25))return false;if(f.fill==='mid'&&(fill===null||fill<26||fill>60))return false;if(f.fill==='high'&&(fill===null||fill<61))return false;
+   if(f.finishedYear&&String(b['Finished Date']||'').indexOf(f.finishedYear)<0)return false;
+   return true;
+ }).sort((a,b)=>{const wa=wi.get(String(a['Whisky ID']))||{},wb=wi.get(String(b['Whisky ID']))||{};return String(wa['Distillery']||wa['Brand / Producer']||'').localeCompare(String(wb['Distillery']||wb['Brand / Producer']||''))||String(wa['Expression']||'').localeCompare(String(wb['Expression']||''))});
+ if(selectedBottleId){const b=s.bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(b)return bottleDetail(b,wi.get(String(b['Whisky ID']))||{});selectedBottleId=null}
+ const current=counts.Current;
+ const dist=new Map(),reg=new Map();let abvs=[];
+ base.forEach(b=>{const w=wi.get(String(b['Whisky ID']))||{};const d=String(w['Distillery']||w['Brand / Producer']||'').trim(),r=String(w['Region']||'').trim(),a=num(w['ABV %']);if(d)dist.set(d,(dist.get(d)||0)+1);if(r)reg.set(r,(reg.get(r)||0)+1);if(a!==null)abvs.push(a)});
+ const top=m=>[...m].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0]||['—',0],td=top(dist),tr=top(reg),avg=abvs.length?(abvs.reduce((a,b)=>a+b,0)/abvs.length).toFixed(1):'—';
+ const active=Object.entries(f).filter(([,v])=>v);
+ const opts=(arr,val)=>'<option value="">All</option>'+arr.map(x=>`<option ${x===val?'selected':''}>${esc(x)}</option>`).join('');
+ const years=[...new Set(base.map(b=>{const m=String(b['Finished Date']||'').match(/(20\\d{2})/);return m&&m[1]}).filter(Boolean))].sort().reverse();
  return `<div class="topbar"><div><div class="title">Collection</div><div class="sync">${s.bottles.length} bottles · ${current} current</div></div><button class="iconBtn" id="collectionRefresh">↻</button></div>
- <section class="collectionSummary">
-   <div><strong>${s.bottles.length}</strong><span>Total</span></div>
-   <div><strong>${counts.Open||0}</strong><span>Open</span></div>
-   <div><strong>${counts.Sealed||0}</strong><span>Sealed</span></div>
-   <div><strong>${counts.Finished||0}</strong><span>Finished</span></div>
- </section>
+ <section class="collectionSummary"><div><strong>${base.length}</strong><span>${collectionFilter} bottles</span></div><div><strong>${esc(td[0])}</strong><span>Top distillery · ${td[1]}</span></div><div><strong>${esc(tr[0])}</strong><span>Top region · ${tr[1]}</span></div><div><strong>${avg==='—'?'—':avg+'%'}</strong><span>Average ABV</span></div></section>
  <div class="segmented">${statuses.map(x=>`<button data-collection-filter="${x}" class="${collectionFilter===x?'active':''}">${x}<small>${counts[x]||0}</small></button>`).join('')}</div>
- <div class="searchbox">⌕<input id="collectionSearch" value="${esc(collectionQuery)}" placeholder="Search distillery, expression, region…"><button id="clearSearch">${collectionQuery?'×':''}</button></div>
+ <div class="searchFilterRow"><div class="searchbox">⌕<input id="collectionSearch" value="${esc(collectionQuery)}" placeholder="Search distillery, expression, region…"><button id="clearSearch">${collectionQuery?'×':''}</button></div><button class="filterBtn ${active.length?'active':''}" id="filterToggle">☷ Filters${active.length?' · '+active.length:''}</button></div>
+ ${filtersOpen?`<section class="card filterPanel"><div class="filterGrid">
+ <label>Distillery<select data-filter="distillery">${opts(values('Distillery'),f.distillery)}</select></label><label>Region<select data-filter="region">${opts(values('Region'),f.region)}</select></label>
+ <label>Country<select data-filter="country">${opts(values('Country'),f.country)}</select></label><label>Age<select data-filter="age"><option value="">All</option><option value="NAS" ${f.age==='NAS'?'selected':''}>NAS</option><option value="0-9" ${f.age==='0-9'?'selected':''}>Under 10</option><option value="10-17" ${f.age==='10-17'?'selected':''}>10–17</option><option value="18+" ${f.age==='18+'?'selected':''}>18+</option></select></label>
+ <label>ABV<select data-filter="abv"><option value="">All</option><option value="under46" ${f.abv==='under46'?'selected':''}>Under 46%</option><option value="46-50" ${f.abv==='46-50'?'selected':''}>46–50%</option><option value="over50" ${f.abv==='over50'?'selected':''}>Over 50%</option></select></label><label>Peated<select data-filter="peated"><option value="">All</option><option ${f.peated==='Yes'?'selected':''}>Yes</option><option ${f.peated==='No'?'selected':''}>No</option></select></label>
+ <label>Bottler<select data-filter="bottler">${opts(values('Bottler'),f.bottler)}</select></label><label>Cask<input data-filter="cask" value="${esc(f.cask)}" placeholder="e.g. Sherry"></label>
+ ${collectionFilter==='Open'?'<label>Fill level<select data-filter="fill"><option value="">All</option><option value="low" '+(f.fill==='low'?'selected':'')+'>≤25%</option><option value="mid" '+(f.fill==='mid'?'selected':'')+'>26–60%</option><option value="high" '+(f.fill==='high'?'selected':'')+'>61–100%</option></select></label>':''}
+ ${collectionFilter==='Finished'?'<label>Finished year<select data-filter="finishedYear">'+opts(years,f.finishedYear)+'</select></label>':''}
+ </div><button class="clearFilters" id="clearFilters">Clear filters</button></section>`:''}
+ ${active.length?`<div class="filterChips">${active.map(([k,v])=>`<button data-clear-filter="${k}">${esc(v)} ×</button>`).join('')}</div>`:''}
  <div class="sectionHead"><h2>${collectionFilter} Bottles</h2><span class="meta">${filtered.length} shown</span></div>
  <section class="bottleGrid">${filtered.length?filtered.map(b=>bottleCard(b,wi.get(String(b['Whisky ID']))||{})).join(''):'<div class="card placeholder">No bottles match this view.</div>'}</section>`;
 }
@@ -114,7 +128,11 @@ function bind(){
  const refresh=document.getElementById('refresh');if(refresh)refresh.onclick=doRefresh;
  const cr=document.getElementById('collectionRefresh');if(cr)cr.onclick=doRefresh;
  const dr=document.getElementById('detailRefresh');if(dr)dr.onclick=doRefresh;
- document.querySelectorAll('[data-collection-filter]').forEach(b=>b.onclick=()=>{collectionFilter=b.dataset.collectionFilter;render()});
+ document.querySelectorAll('[data-collection-filter]').forEach(b=>b.onclick=()=>{collectionFilter=b.dataset.collectionFilter;collectionFilters.fill='';collectionFilters.finishedYear='';render()});
+ const ft=document.getElementById('filterToggle');if(ft)ft.onclick=()=>{filtersOpen=!filtersOpen;render()};
+ document.querySelectorAll('[data-filter]').forEach(el=>el.onchange=e=>{collectionFilters[e.target.dataset.filter]=e.target.value;render()});
+ document.querySelectorAll('[data-clear-filter]').forEach(el=>el.onclick=()=>{collectionFilters[el.dataset.clearFilter]='';render()});
+ const cf=document.getElementById('clearFilters');if(cf)cf.onclick=()=>{Object.keys(collectionFilters).forEach(k=>collectionFilters[k]='');render()};
  const cs=document.getElementById('collectionSearch');if(cs)cs.oninput=e=>{collectionQuery=e.target.value;render();const n=document.getElementById('collectionSearch');if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length)}};
  const clear=document.getElementById('clearSearch');if(clear)clear.onclick=()=>{collectionQuery='';render()};
  document.querySelectorAll('[data-bottle-id]').forEach(b=>b.onclick=()=>{selectedBottleId=b.dataset.bottleId;render();window.scrollTo(0,0)});

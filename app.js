@@ -51,6 +51,7 @@ function collection(){
  const counts={Current:s.bottles.filter(b=>isStatus(b,'Open')||isStatus(b,'Sealed')).length,Open:s.bottles.filter(b=>isStatus(b,'Open')).length,Sealed:s.bottles.filter(b=>isStatus(b,'Sealed')).length,Finished:s.bottles.filter(b=>isStatus(b,'Finished')).length};
  const base=s.bottles.filter(b=>collectionFilter==='Current'?(isStatus(b,'Open')||isStatus(b,'Sealed')):isStatus(b,collectionFilter));
  const values=field=>[...new Set(base.map(b=>String((wi.get(String(b['Whisky ID']))||{})[field]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+ const peatClass=v=>{const x=String(v||'').trim().toLowerCase();if(!x)return '';if(['yes','y','true','peated','peat','smoky','smoked'].includes(x)||x.includes('peated'))return 'Peated';if(['no','n','false','unpeated','not peated'].includes(x)||x.includes('unpeated'))return 'Unpeated';return 'Unknown'};
  const q=collectionQuery.trim().toLowerCase(),f=collectionFilters;
  const filtered=base.filter(b=>{
    const w=wi.get(String(b['Whisky ID']))||{}, age=num(w['Age Years']||w['Age Statement']), abv=num(w['ABV %']), fill=num(b['Current Fill %']);
@@ -60,7 +61,7 @@ function collection(){
    if(f.country&&String(w['Country']||'')!==f.country)return false;
    if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;
    if(f.cask&&!String(w['Cask Type / Maturation']||'').toLowerCase().includes(f.cask.toLowerCase()))return false;
-   if(f.peated&&String(w['Peated']||'').toLowerCase()!==f.peated.toLowerCase())return false;
+   if(f.peated&&peatClass(w['Peated'])!==f.peated)return false;
    if(f.age==='NAS'&&age!==null)return false;if(f.age==='0-9'&&(age===null||age>9))return false;if(f.age==='10-17'&&(age===null||age<10||age>17))return false;if(f.age==='18+'&&(age===null||age<18))return false;
    if(f.abv==='under46'&&(abv===null||abv>=46))return false;if(f.abv==='46-50'&&(abv===null||abv<46||abv>50))return false;if(f.abv==='over50'&&(abv===null||abv<=50))return false;
    if(f.fill==='low'&&(fill===null||fill>25))return false;if(f.fill==='mid'&&(fill===null||fill<26||fill>60))return false;if(f.fill==='high'&&(fill===null||fill<61))return false;
@@ -82,7 +83,7 @@ function collection(){
  ${filtersOpen?`<section class="card filterPanel"><div class="filterGrid">
  <label>Distillery<select data-filter="distillery">${opts(values('Distillery'),f.distillery)}</select></label><label>Region<select data-filter="region">${opts(values('Region'),f.region)}</select></label>
  <label>Country<select data-filter="country">${opts(values('Country'),f.country)}</select></label><label>Age<select data-filter="age"><option value="">All</option><option value="NAS" ${f.age==='NAS'?'selected':''}>NAS</option><option value="0-9" ${f.age==='0-9'?'selected':''}>Under 10</option><option value="10-17" ${f.age==='10-17'?'selected':''}>10–17</option><option value="18+" ${f.age==='18+'?'selected':''}>18+</option></select></label>
- <label>ABV<select data-filter="abv"><option value="">All</option><option value="under46" ${f.abv==='under46'?'selected':''}>Under 46%</option><option value="46-50" ${f.abv==='46-50'?'selected':''}>46–50%</option><option value="over50" ${f.abv==='over50'?'selected':''}>Over 50%</option></select></label><label>Peated<select data-filter="peated"><option value="">All</option><option ${f.peated==='Yes'?'selected':''}>Yes</option><option ${f.peated==='No'?'selected':''}>No</option></select></label>
+ <label>ABV<select data-filter="abv"><option value="">All</option><option value="under46" ${f.abv==='under46'?'selected':''}>Under 46%</option><option value="46-50" ${f.abv==='46-50'?'selected':''}>46–50%</option><option value="over50" ${f.abv==='over50'?'selected':''}>Over 50%</option></select></label><label>Peat<select data-filter="peated"><option value="">All</option><option value="Peated" ${f.peated==='Peated'?'selected':''}>Peated</option><option value="Unpeated" ${f.peated==='Unpeated'?'selected':''}>Unpeated</option><option value="Unknown" ${f.peated==='Unknown'?'selected':''}>Unknown / not recorded</option></select></label>
  <label>Bottler<select data-filter="bottler">${opts(values('Bottler'),f.bottler)}</select></label><label>Cask<input data-filter="cask" value="${esc(f.cask)}" placeholder="e.g. Sherry"></label>
  ${collectionFilter==='Open'?'<label>Fill level<select data-filter="fill"><option value="">All</option><option value="low" '+(f.fill==='low'?'selected':'')+'>≤25%</option><option value="mid" '+(f.fill==='mid'?'selected':'')+'>26–60%</option><option value="high" '+(f.fill==='high'?'selected':'')+'>61–100%</option></select></label>':''}
  ${collectionFilter==='Finished'?'<label>Finished year<select data-filter="finishedYear">'+opts(years,f.finishedYear)+'</select></label>':''}

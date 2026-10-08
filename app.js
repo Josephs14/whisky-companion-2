@@ -155,22 +155,37 @@ function generic(title,text){return `<div class="topbar"><div class="title">${ti
 function setup(){return `<div class="topbar"><div class="brand"><div class="logo">🥃</div><div class="title">Whisky Companion</div></div></div><div class="card setup"><div class="name">Connect this device</div><div class="meta">Enter the private API token for this development device. It is stored only for this browser session and is not committed to GitHub.</div><input id="tokenInput" type="password" autocomplete="off" placeholder="API token"><button class="primary" id="saveToken">Connect & Refresh</button></div>`}
 function bottom(){return `<nav class="bottom"><div class="bottomInner">${[['Home','⌂'],['Collection','🍾'],['Tastings','🥃'],['Live','📷'],['Insights','▥']].map(([x,i])=>`<button data-tab="${x}" class="${tab===x?'active':''}"><span>${i}</span>${x}</button>`).join('')}</div></nav>`}
 function addBottlePage(){
- const whiskies=[...state().whiskies].sort((a,b)=>String(a['Distillery']||'').localeCompare(String(b['Distillery']||''))||String(a['Expression']||'').localeCompare(String(b['Expression']||'')));
- const option=whiskies.map(w=>`<option value="${esc(w['Whisky ID'])}">${esc([w['Distillery'],w['Expression'],w['Age Years']?w['Age Years']+'y':''].filter(Boolean).join(' · '))} (${esc(w['Whisky ID'])})</option>`).join('');
+ const s=state(),whiskies=[...s.whiskies].sort((a,b)=>String(a['Distillery']||'').localeCompare(String(b['Distillery']||''))||String(a['Expression']||'').localeCompare(String(b['Expression']||'')));
  const whiskyFields=['Distillery','Expression','Whisky Type','Bottler','Brand / Producer','Country','Region','Age Years','ABV %','Bottle Size ml','Cask Type / Maturation','Peated','Whiskybase ID','Whiskybase URL'];
  const bottleFields=['Collection Role','Acquisition Date','Acquisition Date Precision','Acquisition Type','Shop / Source','Purchase Price','Currency','Status','Replace When Empty','Notes'];
- const input=(key,entity)=>{
-  if(key==='Notes')return `<label>${esc(key)}<textarea data-add-entity="${entity}" data-add-field="${esc(key)}"></textarea></label>`;
-  if(key==='Status')return `<label>Status<select data-add-entity="bottle" data-add-field="Status"><option>Sealed</option><option>Open</option></select></label>`;
-  const type=/Date$/.test(key)?'date':(['Age Years','ABV %','Bottle Size ml','Purchase Price'].includes(key)?'number':'text');
-  return `<label>${esc(key)}<input type="${type}" data-add-entity="${entity}" data-add-field="${esc(key)}" ${key==='Distillery'||key==='Expression'?'required':''}></label>`;
+ const fixed={
+ 'Whisky Type':['Single Malt','Blended Malt','Blended Whisky','Single Grain','Single Pot Still','Bourbon','Rye','Other'],
+ 'Peated':['Yes','No','Unknown'],
+ 'Acquisition Date Precision':['Exact','Month','Year','Approximate','Unknown'],
+ 'Acquisition Type':['Purchased','Gift','Trade','Other'],
+ 'Currency':['GBP','ILS','EUR','USD','JPY','Other'],
+ 'Status':['Sealed'],
+ 'Replace When Empty':['Yes','No','Maybe']
  };
+ const suggestions=(key,entity)=>[...new Set((entity==='whisky'?s.whiskies:s.bottles).map(row=>String(row[key]??'').trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y));
+ const input=(key,entity)=>{
+  const id='add-'+entity+'-'+key.replace(/[^a-z0-9]/gi,'-');
+  if(key==='Notes')return `<label>${esc(key)}<textarea data-add-entity="${entity}" data-add-field="${esc(key)}"></textarea></label>`;
+  if(fixed[key]){
+   const choices=[...new Set([...fixed[key],...suggestions(key,entity)])];
+   return `<label>${esc(key)}<select data-add-entity="${entity}" data-add-field="${esc(key)}"><option value="">Select…</option>${choices.map(v=>`<option value="${esc(v)}" ${key==='Status'&&v==='Sealed'?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`;
+  }
+  const type=/Date$/.test(key)?'date':(['Age Years','ABV %','Bottle Size ml','Purchase Price'].includes(key)?'number':'text');
+  const known=type==='text'&&key!=='Expression'&&key!=='Whiskybase ID'&&key!=='Whiskybase URL'?suggestions(key,entity):[];
+  return `<label>${esc(key)}<input id="${id}" type="${type}" data-add-entity="${entity}" data-add-field="${esc(key)}" ${known.length?`list="${id}-list"`:''} ${key==='Distillery'||key==='Expression'?'required':''}>${known.length?`<datalist id="${id}-list">${known.map(v=>`<option value="${esc(v)}"></option>`).join('')}</datalist>`:''}</label>`;
+ };
+ const matchLabel=w=>[w['Distillery']||w['Brand / Producer'],w['Expression'],w['Age Years']?w['Age Years']+'y':'',w['ABV %']?w['ABV %']+'%':''].filter(Boolean).join(' · ');
  return `<div class="topbar"><button id="backAddBottle" class="backBtn">‹ Collection</button><div class="title">Add Bottle</div><span></span></div>
- <section class="card setup"><div class="meta">Choose whether this bottle belongs to an existing whisky release or a new one.</div>
+ <section class="card setup"><div class="meta">Select an existing release or register a new whisky.</div>
  <div class="segmented editTabs"><button data-add-mode="existing" class="${addMode==='existing'?'active':''}">Existing Whisky</button><button data-add-mode="new" class="${addMode==='new'?'active':''}">New Whisky</button></div>
- ${addMode==='existing'?`<label>Whisky release<select id="addWhiskyId"><option value="">Select whisky…</option>${option}</select></label>`:`<div class="editFields">${whiskyFields.map(k=>input(k,'whisky')).join('')}</div><div class="meta">A new Whisky ID will be created before the bottle. If bottle creation fails, the whisky may remain in the database.</div>`}
+ ${addMode==='existing'?`<label>Search whisky by distillery, expression, age or ID<input id="addWhiskySearch" type="search" autocomplete="off" placeholder="Start typing a whisky name…"></label><input id="addWhiskyId" type="hidden"><div id="addWhiskyResults" class="editFields" style="max-height:280px;overflow:auto"><div class="meta">Type to search ${whiskies.length} whiskies.</div></div><div id="addWhiskySelected" class="meta"></div>`:`<div class="editFields">${whiskyFields.map(k=>input(k,'whisky')).join('')}</div><div class="meta">New whisky creation is a separate database operation from bottle creation.</div>`}
  <h3>Bottle information</h3><div class="editFields">${bottleFields.map(k=>input(k,'bottle')).join('')}</div>
- <button id="saveNewBottle" class="primary">Create Bottle</button><div class="meta">The database generates IDs. Missing optional details can be added later using Edit Bottle.</div></section>`;
+ <button id="saveNewBottle" class="primary">Create Bottle</button><div class="meta">Optional fields can be completed later in Edit Bottle. Bottle IDs are generated by the database.</div></section>`;
 }
 function render(){
  const hasToken=!!sessionStorage.getItem('wc2ApiToken');
@@ -184,6 +199,14 @@ function bind(){
  document.querySelectorAll('#addBottleHome,#addBottleCollection').forEach(el=>el.onclick=()=>{tab='AddBottle';render();window.scrollTo(0,0)});
  document.querySelectorAll('[data-add-mode]').forEach(el=>el.onclick=()=>{addMode=el.dataset.addMode;render()});
  const backAdd=document.getElementById('backAddBottle');if(backAdd)backAdd.onclick=()=>{tab='Collection';render()};
+ const whiskySearch=document.getElementById('addWhiskySearch');if(whiskySearch){
+  const results=document.getElementById('addWhiskyResults'),hidden=document.getElementById('addWhiskyId'),selected=document.getElementById('addWhiskySelected');
+  whiskySearch.oninput=()=>{hidden.value='';selected.textContent='';const q=whiskySearch.value.trim().toLowerCase();results.innerHTML='';if(!q){results.textContent='Start typing to search the whisky database.';return}
+   const matches=state().whiskies.filter(w=>[w['Distillery'],w['Brand / Producer'],w['Expression'],w['Age Years'],w['Whisky ID'],w['Whiskybase ID']].some(v=>String(v??'').toLowerCase().includes(q))).slice(0,30);
+   if(!matches.length){results.textContent='No matching whiskies. Try another search or select New Whisky.';return}
+   matches.forEach(w=>{const el=document.createElement('button');el.type='button';el.className='card';el.style.cssText='width:100%;text-align:left;padding:12px;margin:4px 0';el.textContent=[w['Distillery']||w['Brand / Producer'],w['Expression'],w['Age Years']?w['Age Years']+'y':'',w['ABV %']?w['ABV %']+'%':'',w['Whisky ID']].filter(Boolean).join(' · ');el.onclick=()=>{hidden.value=w['Whisky ID'];whiskySearch.value=[w['Distillery'],w['Expression']].filter(Boolean).join(' · ');selected.textContent='Selected: '+el.textContent;results.innerHTML=''};results.appendChild(el)})
+  };
+ }
  const saveNew=document.getElementById('saveNewBottle');if(saveNew)saveNew.onclick=createNewBottle;
  const save=document.getElementById('saveToken');if(save)save.onclick=async()=>{const v=document.getElementById('tokenInput').value.trim();if(!v)return;WC2.setToken(v);await doRefresh()};
  const refresh=document.getElementById('refresh');if(refresh)refresh.onclick=doRefresh;

@@ -334,7 +334,7 @@ function bind(){
  const editSession=document.getElementById('editSession');if(editSession)editSession.onclick=()=>{tastingEdit='session';render()};
  const editDram=document.getElementById('editDram');if(editDram)editDram.onclick=()=>{tastingEdit='dram';render()};
  const cancelEdit=document.getElementById('cancelTastingEdit');if(cancelEdit)cancelEdit.onclick=()=>{tastingEdit=null;render()};
- const saveEdit=document.getElementById('saveTastingEdit');if(saveEdit)saveEdit.onclick=saveTastingEdit;
+ const saveTastingBtn=document.getElementById('saveTastingEdit');if(saveTastingBtn)saveTastingBtn.onclick=saveTastingEdit;
  for(const id of ['deleteSession','deleteDram']){const el=document.getElementById(id);if(el)el.onclick=()=>toast('Deletion is not enabled until a safe backend delete action is available.')}
  const backDram=document.getElementById('backDram');if(backDram)backDram.onclick=()=>{selectedDramId=null;tastingEdit=null;render()};
  const backTastings=document.getElementById('backTastings');if(backTastings)backTastings.onclick=()=>{selectedSessionId=null;tastingEdit=null;render()};

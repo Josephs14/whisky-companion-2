@@ -6,6 +6,26 @@ let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery=''
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
 const dateInput=v=>{if(v===null||v===undefined||v==='')return '';if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.toISOString().slice(0,10)}const s=String(v);return /^\d{4}-\d{2}-\d{2}/.test(s)?s.slice(0,10):s};
+const fieldChoices={
+ 'Whisky Type':['Single Malt','Blended Malt','Blended Whisky','Single Grain','Single Pot Still','Bourbon','Rye','Other'],
+ 'Release Type':['Core Range','Limited Edition','Single Cask','Small Batch','Distillery Exclusive','Independent Bottling','Other'],
+ 'Peated':['Yes','No','Unknown'],
+ 'Collection Role':['Standard','Limited Edition','Special Release','Gift','Other'],
+ 'Acquisition Date Precision':['Exact','Month','Year','Approximate','Unknown'],
+ 'Open Date Precision':['Exact','Month','Year','Approximate','Unknown'],
+ 'Finished Date Precision':['Exact','Month','Year','Approximate','Unknown'],
+ 'Acquisition Type':['Purchased','Gift','Trade','Other'],
+ 'Currency':['GBP','ILS','EUR','USD','JPY','Other'],
+ 'Replace When Empty':['Yes','No','Maybe'],
+ 'Verification Status':['Verified','Partially Verified','Unverified','Updated via Whisky Companion'],
+ 'Age Statement':['NAS','Unknown']
+};
+const suggestionFields=new Set(['Distillery','Bottler','Brand / Producer','Country','Region','Shop / Source','Cask Type / Maturation']);
+function fieldSuggestions(key,entity){return [...new Set((entity==='whisky'?state().whiskies:state().bottles).map(r=>String(r[key]??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b))}
+function fieldSelect(key,entity,val,attr){
+ const options=[...new Set([...(fieldChoices[key]||[]),...fieldSuggestions(key,entity),...(val!==''?[String(val)]:[])])];
+ return `<select ${attr}><option value="">Select…</option>${options.map(v=>`<option value="${esc(v)}" ${String(v)===String(val)?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+}
 const dateValue=v=>{if(v===null||v===undefined||v==='')return 0;if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.getTime()}const s=String(v).trim();let d=new Date(s);if(!isNaN(d))return d.getTime();const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime():0};
 function toast(msg){let n=document.querySelector('.notice');if(!n){n=document.createElement('div');n.className='notice';document.body.appendChild(n)}n.textContent=msg;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>n.remove(),2800)}
 function state(){return window.WC2?WC2.getState():{whiskies:[],bottles:[],sessions:[],drams:[]}}
@@ -129,10 +149,11 @@ function bottleDetail(b,w){
   const form=fields.map(key=>{
    const dateField=['Acquisition Date','Open Date','Finished Date','Last Verified'].includes(key);
    const val=dateField?dateInput(source[key]):(source[key]??''),label=esc(key),inputId=esc(key);
-   if(key==='Status')return `<label>${label}<select data-edit-field="${inputId}" data-edit-entity="bottle">${['Sealed','Open','Finished'].map(v=>`<option value="${v}" ${String(val)===v?'selected':''}>${v}</option>`).join('')}</select></label>`;
+   if(fieldChoices[key]||key==='Status')return `<label>${label}${fieldSelect(key,editSection,val,`data-edit-field="${inputId}" data-edit-entity="${editSection}" ${key==='Status'?'disabled':''}`)}</label>`;
    if(key==='Notes')return `<label>${label}<textarea data-edit-field="${inputId}" data-edit-entity="bottle" rows="4">${esc(val)}</textarea></label>`;
    const type=dateField?'date':(['Purchase Price','Current Fill %','Age Years','ABV %','Bottle Size ml','Bottling Year','Outturn'].includes(key)?'number':'text');
-   return `<label>${label}<input type="${type}" data-edit-field="${inputId}" data-edit-entity="${editSection}" value="${esc(val)}"></label>`;
+   const known=suggestionFields.has(key)?fieldSuggestions(key,editSection):[],listId='edit-list-'+key.replace(/[^a-z0-9]/gi,'-');
+   return `<label>${label}<input type="${type}" data-edit-field="${inputId}" data-edit-entity="${editSection}" value="${esc(val)}" ${known.length?`list="${listId}"`:``}>${known.length?`<datalist id="${listId}">${known.map(v=>`<option value="${esc(v)}"></option>`).join("")}</datalist>`:``}</label>`;
   }).join('');
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div>
   <div class="segmented editTabs"><button data-edit-section="bottle" class="${editSection==='bottle'?'active':''}">Bottle Details</button><button data-edit-section="whisky" class="${editSection==='whisky'?'active':''}">Whisky Details</button></div>
@@ -158,25 +179,12 @@ function addBottlePage(){
  const s=state(),whiskies=[...s.whiskies].sort((a,b)=>String(a['Distillery']||'').localeCompare(String(b['Distillery']||''))||String(a['Expression']||'').localeCompare(String(b['Expression']||'')));
  const whiskyFields=['Distillery','Expression','Whisky Type','Bottler','Brand / Producer','Country','Region','Age Years','ABV %','Bottle Size ml','Cask Type / Maturation','Peated','Whiskybase ID','Whiskybase URL'];
  const bottleFields=['Collection Role','Acquisition Date','Acquisition Date Precision','Acquisition Type','Shop / Source','Purchase Price','Currency','Status','Replace When Empty','Notes'];
- const fixed={
- 'Whisky Type':['Single Malt','Blended Malt','Blended Whisky','Single Grain','Single Pot Still','Bourbon','Rye','Other'],
- 'Peated':['Yes','No','Unknown'],
- 'Acquisition Date Precision':['Exact','Month','Year','Approximate','Unknown'],
- 'Acquisition Type':['Purchased','Gift','Trade','Other'],
- 'Currency':['GBP','ILS','EUR','USD','JPY','Other'],
- 'Status':['Sealed'],
- 'Replace When Empty':['Yes','No','Maybe']
- };
- const suggestions=(key,entity)=>[...new Set((entity==='whisky'?s.whiskies:s.bottles).map(row=>String(row[key]??'').trim()).filter(Boolean))].sort((x,y)=>x.localeCompare(y));
  const input=(key,entity)=>{
   const id='add-'+entity+'-'+key.replace(/[^a-z0-9]/gi,'-');
   if(key==='Notes')return `<label>${esc(key)}<textarea data-add-entity="${entity}" data-add-field="${esc(key)}"></textarea></label>`;
-  if(fixed[key]){
-   const choices=[...new Set([...fixed[key],...suggestions(key,entity)])];
-   return `<label>${esc(key)}<select data-add-entity="${entity}" data-add-field="${esc(key)}"><option value="">Select…</option>${choices.map(v=>`<option value="${esc(v)}" ${key==='Status'&&v==='Sealed'?'selected':''}>${esc(v)}</option>`).join('')}</select></label>`;
-  }
+  if(fieldChoices[key]||key==='Status')return `<label>${esc(key)}${fieldSelect(key,entity,key==='Status'?'Sealed':'',`data-add-entity="${entity}" data-add-field="${esc(key)}"`)}</label>`;
   const type=/Date$/.test(key)?'date':(['Age Years','ABV %','Bottle Size ml','Purchase Price'].includes(key)?'number':'text');
-  const known=type==='text'&&key!=='Expression'&&key!=='Whiskybase ID'&&key!=='Whiskybase URL'?suggestions(key,entity):[];
+  const known=type==='text'&&suggestionFields.has(key)?fieldSuggestions(key,entity):[];
   return `<label>${esc(key)}<input id="${id}" type="${type}" data-add-entity="${entity}" data-add-field="${esc(key)}" ${known.length?`list="${id}-list"`:''} ${key==='Distillery'||key==='Expression'?'required':''}>${known.length?`<datalist id="${id}-list">${known.map(v=>`<option value="${esc(v)}"></option>`).join('')}</datalist>`:''}</label>`;
  };
  const matchLabel=w=>[w['Distillery']||w['Brand / Producer'],w['Expression'],w['Age Years']?w['Age Years']+'y':'',w['ABV %']?w['ABV %']+'%':''].filter(Boolean).join(' · ');

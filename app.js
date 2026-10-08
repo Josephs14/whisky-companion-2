@@ -51,7 +51,7 @@ function collection(){
  const counts={Current:s.bottles.filter(b=>isStatus(b,'Open')||isStatus(b,'Sealed')).length,Open:s.bottles.filter(b=>isStatus(b,'Open')).length,Sealed:s.bottles.filter(b=>isStatus(b,'Sealed')).length,Finished:s.bottles.filter(b=>isStatus(b,'Finished')).length};
  const base=s.bottles.filter(b=>collectionFilter==='Current'?(isStatus(b,'Open')||isStatus(b,'Sealed')):isStatus(b,collectionFilter));
  const values=field=>[...new Set(base.map(b=>String((wi.get(String(b['Whisky ID']))||{})[field]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
- const peatClass=v=>{const x=String(v||'').trim().toLowerCase();if(!x)return '';if(['yes','y','true','peated','peat','smoky','smoked'].includes(x)||x.includes('peated'))return 'Peated';if(['no','n','false','unpeated','not peated'].includes(x)||x.includes('unpeated'))return 'Unpeated';return 'Unknown'};
+ const peatClass=v=>{const x=String(v||'').trim().toLowerCase();if(!x)return 'Unknown';if(['no','n','false','unpeated','not peated','non-peated','non peated','0'].includes(x)||x.startsWith('unpeated'))return 'Unpeated';if(['yes','y','true','peated','peat','smoky','smoked','1'].includes(x))return 'Peated';return 'Unknown'};
  const q=collectionQuery.trim().toLowerCase(),f=collectionFilters;
  const filtered=base.filter(b=>{
    const w=wi.get(String(b['Whisky ID']))||{}, age=num(w['Age Years']||w['Age Statement']), abv=num(w['ABV %']), fill=num(b['Current Fill %']);
@@ -122,7 +122,7 @@ function bottleDetail(b,w){
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">History</div><span></span></div><section class="card list">${events.length?events.map(x=>`<div class="row"><div class="grow"><div class="name">${esc(x.type)}</div><div class="meta">${esc(x.date||'Date unknown')}${x.note?' · '+esc(x.note):''}</div></div></div>`).join(''):'<div class="placeholder">No history recorded for this bottle.</div>'}</section>`;
  }
  if(bottleView==='edit'){
-  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div><section class="card setup"><label>Status<select id="editStatus"><option ${b['Status']==='Sealed'?'selected':''}>Sealed</option><option ${b['Status']==='Open'?'selected':''}>Open</option><option ${b['Status']==='Finished'?'selected':''}>Finished</option></select></label><label>Current fill %<input id="editFill" type="number" min="0" max="100" value="${esc(b['Current Fill %'])}"></label><label>Notes<textarea id="editNotes" rows="5">${esc(b['Notes']||'')}</textarea></label><button class="primary" id="saveBottleEdit">Save Changes</button><div class="meta" style="margin-top:10px">Status changes use the controlled bottle operations so lifecycle and fill history remain consistent.</div></section>`;
+  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div><section class="card setup"><label>Status<select id="editStatus"><option ${b['Status']==='Sealed'?'selected':''}>Sealed</option><option ${b['Status']==='Open'?'selected':''}>Open</option><option ${b['Status']==='Finished'?'selected':''}>Finished</option></select></label><label>Current fill %<input id="editFill" type="number" min="0" max="100" value="${esc(b['Current Fill %'])}"></label><div class="meta">Notes editing requires the audited UPDATE_BOTTLE API and is not yet available.</div><button class="primary" id="saveBottleEdit">Save Changes</button><div class="meta" style="margin-top:10px">Status changes use the controlled bottle operations so lifecycle and fill history remain consistent.</div></section>`;
  }
  if(bottleView==='taste'){
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Taste Bottle</div><span></span></div><section class="detailHero card"><div class="detailBottle">🥃</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||'Bottle')}</h1><div class="meta">Linked to ${esc(id)}</div></div></section><section class="card setup"><label>Score<input id="tasteScore" type="number" min="0" max="100" step="0.5" placeholder="Optional"></label><label>Nose<textarea id="tasteNose" rows="2"></textarea></label><label>Palate<textarea id="tastePalate" rows="2"></textarea></label><label>Finish<textarea id="tasteFinish" rows="2"></textarea></label><label>Notes<textarea id="tasteNotes" rows="3"></textarea></label><button class="primary" id="saveBottleTaste">Save Tasting</button></section>`;
@@ -172,15 +172,15 @@ function bind(){
 }
 async function saveBottleChanges(){
  const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;
- const status=document.getElementById('editStatus').value,fill=num(document.getElementById('editFill').value),notes=document.getElementById('editNotes').value;
+ const status=document.getElementById('editStatus').value,fill=num(document.getElementById('editFill').value);
  try{
+  if(fill!==null&&(fill<0||fill>100)){toast('Fill must be 0–100%.');return}
   if(status!==b['Status']){
    if(status==='Open')await WC2.api('OPEN_BOTTLE',{bottleId:b['Bottle ID'],openDate:new Date().toISOString().slice(0,10)});
    else if(status==='Finished')await WC2.api('FINISH_BOTTLE',{bottleId:b['Bottle ID'],finishedDate:new Date().toISOString().slice(0,10)});
    else {toast('Changing a bottle back to Sealed is not exposed by the controlled API.');return}
   }
   if(status==='Open'&&fill!==null&&fill!==num(b['Current Fill %']))await WC2.api('CHANGE_FILL',{bottleId:b['Bottle ID'],fillPercent:fill,eventDate:new Date().toISOString().slice(0,10)});
-  if(notes!==String(b['Notes']||'')){toast('Notes editing needs a dedicated bottle update API action; status/fill changes were saved if requested.')}
   await WC2.refresh();bottleView='detail';render();toast('Bottle updated');
  }catch(e){toast('Update failed: '+e.message)}
 }

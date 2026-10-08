@@ -9,7 +9,7 @@ const dateInput=v=>{if(v===null||v===undefined||v==='')return '';if(typeof v==='
 const fieldChoices={
  'Whisky Type':['Single Malt','Blended Malt','Blended Whisky','Single Grain','Single Pot Still','Bourbon','Rye','Other'],
  'Release Type':['Core Range','Limited Edition','Single Cask','Small Batch','Distillery Exclusive','Independent Bottling','Other'],
- 'Peated':['Yes','No','Unknown'],
+ 'Peated':['Peated','Unpeated','Unknown'],
  'Collection Role':['Standard','Limited Edition','Special Release','Gift','Other'],
  'Acquisition Date Precision':['Exact','Month','Year','Approximate','Unknown'],
  'Open Date Precision':['Exact','Month','Year','Approximate','Unknown'],
@@ -23,8 +23,9 @@ const fieldChoices={
 const suggestionFields=new Set(['Distillery','Bottler','Brand / Producer','Country','Region','Shop / Source','Cask Type / Maturation']);
 function fieldSuggestions(key,entity){return [...new Set((entity==='whisky'?state().whiskies:state().bottles).map(r=>String(r[key]??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b))}
 function fieldSelect(key,entity,val,attr){
- const options=[...new Set([...(fieldChoices[key]||[]),...fieldSuggestions(key,entity),...(val!==''?[String(val)]:[])])];
- return `<select ${attr}><option value="">Select…</option>${options.map(v=>`<option value="${esc(v)}" ${String(v)===String(val)?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+ const options=key==='Peated'?fieldChoices[key]:[...new Set([...(fieldChoices[key]||[]),...fieldSuggestions(key,entity),...(val!==''?[String(val)]:[])])];
+ const selected=key==='Peated'?(/^(true|yes|y|1|peated)$/i.test(String(val))?'Peated':/^(false|no|n|0|unpeated)$/i.test(String(val))?'Unpeated':String(val||'Unknown')):String(val);
+ return `<select ${attr}><option value="">Select…</option>${options.map(v=>`<option value="${esc(v)}" ${String(v)===selected?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
 }
 const dateValue=v=>{if(v===null||v===undefined||v==='')return 0;if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.getTime()}const s=String(v).trim();let d=new Date(s);if(!isNaN(d))return d.getTime();const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime():0};
 function toast(msg){let n=document.querySelector('.notice');if(!n){n=document.createElement('div');n.className='notice';document.body.appendChild(n)}n.textContent=msg;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>n.remove(),2800)}

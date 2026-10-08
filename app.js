@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='';
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:''};
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -233,9 +233,45 @@ function tastingsPage(){
  }
  const q=tastingSearch.trim().toLowerCase();
  if(tastingView==='drams'){
-  const rows=[...s.drams].sort((a,b)=>dateValue(b['Tasting Date']||allSessions.get(String(b['Session ID']))?.['Date'])-dateValue(a['Tasting Date']||allSessions.get(String(a['Session ID']))?.['Date'])).filter(d=>!q||[dramName(d),d['Tasting ID'],allSessions.get(String(d['Session ID']))?.['Session Name']].some(v=>String(v??'').toLowerCase().includes(q)));
+  const f=dramFilters, all=s.drams, peat=v=>{const x=String(v??'').toLowerCase();return ['yes','true','peated','1'].includes(x)?'Peated':['no','false','unpeated','0'].includes(x)?'Unpeated':'Unknown'};
+  const year=d=>{const v=String(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']||'');const m=v.match(/(?:19|20)\d{2}/);return m?m[0]:''};
+  const vals=fn=>[...new Set(all.map(fn).map(v=>String(v??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const options=(arr,v)=>'<option value="">All</option>'+arr.map(x=>`<option value="${esc(x)}" ${x===v?'selected':''}>${esc(x)}</option>`).join('');
+  const active=Object.values(f).filter(Boolean).length;
+  const rows=[...all].sort((a,b)=>dateValue(b['Tasting Date']||allSessions.get(String(b['Session ID']))?.['Date'])-dateValue(a['Tasting Date']||allSessions.get(String(a['Session ID']))?.['Date'])).filter(d=>{
+   const w=whisky(d),score=num(d['Score']),age=num(w['Age Years']);
+   if(q&&![dramName(d),d['Tasting ID'],d['Bottle ID'],w['Bottler'],w['Region'],w['Cask Type / Maturation'],allSessions.get(String(d['Session ID']))?.['Session Name']].some(v=>String(v??'').toLowerCase().includes(q)))return false;
+   if(f.distillery&&distillery(d)!==f.distillery)return false;
+   if(f.region&&String(w['Region']||'')!==f.region)return false;
+   if(f.country&&String(w['Country']||'')!==f.country)return false;
+   if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;
+   if(f.peated&&peat(w['Peated'])!==f.peated)return false;
+   if(f.session&&String(d['Session ID'])!==f.session)return false;
+   if(f.year&&year(d)!==f.year)return false;
+   if(f.age==='NAS'&&age!==null)return false;
+   if(f.age==='0-9'&&(age===null||age>9))return false;
+   if(f.age==='10-17'&&(age===null||age<10||age>17))return false;
+   if(f.age==='18+'&&(age===null||age<18))return false;
+   if(f.score==='unscored'&&score!==null)return false;
+   if(f.score==='under70'&&(score===null||score>=70))return false;
+   if(f.score==='70-79'&&(score===null||score<70||score>=80))return false;
+   if(f.score==='80-89'&&(score===null||score<80||score>=90))return false;
+   if(f.score==='90+'&&(score===null||score<90))return false;
+   return true;
+  });
   return `${heading}${tabs}<section class="collectionSummary"><div><strong>${unique.size}</strong><span>Unique whiskies</span></div><div><strong>${s.drams.length}</strong><span>Tasting records</span></div></section>
-  <label class="tastingSearchLabel">Search all drams<input type="search" id="tastingSearch" placeholder="Distillery, expression or session…" value="${esc(tastingSearch)}"></label>
+  <div class="searchFilterRow"><div class="searchbox">⌕<input type="search" id="tastingSearch" placeholder="Search distillery, expression, session…" value="${esc(tastingSearch)}"><button type="button" id="clearDramSearch">${tastingSearch?'×':''}</button></div><button type="button" class="filterBtn" id="dramFilterToggle">☷ Filters${active?' · '+active:''}</button></div>
+  ${dramFiltersOpen?`<section class="card filterPanel"><div class="filterGrid">
+  <label>Distillery<select data-dram-filter="distillery">${options(vals(distillery),f.distillery)}</select></label>
+  <label>Region<select data-dram-filter="region">${options(vals(d=>whisky(d)['Region']),f.region)}</select></label>
+  <label>Country<select data-dram-filter="country">${options(vals(d=>whisky(d)['Country']),f.country)}</select></label>
+  <label>Bottler<select data-dram-filter="bottler">${options(vals(d=>whisky(d)['Bottler']),f.bottler)}</select></label>
+  <label>Peated<select data-dram-filter="peated">${options(['Peated','Unpeated','Unknown'],f.peated)}</select></label>
+  <label>Age<select data-dram-filter="age">${options(['NAS','0-9','10-17','18+'],f.age)}</select></label>
+  <label>Score<select data-dram-filter="score">${options(['unscored','under70','70-79','80-89','90+'],f.score)}</select></label>
+  <label>Tasting year<select data-dram-filter="year">${options(vals(year).reverse(),f.year)}</select></label>
+  <label>Session<select data-dram-filter="session"><option value="">All</option>${[...allSessions.values()].map(sess=>`<option value="${esc(sess['Session ID'])}" ${f.session===String(sess['Session ID'])?'selected':''}>${esc(sess['Session Name']||sess['Location']||sess['Session ID'])}</option>`).join('')}</select></label>
+  </div><button type="button" class="clearFilters" id="clearDramFilters">Clear all filters</button></section>`:''}
   <div class="sectionHead"><h2>All Drams (${rows.length})</h2></div>
   ${rows.map(d=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="meta">${esc(fmt(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']))} · ${esc(allSessions.get(String(d['Session ID']))?.['Session Name']||'Standalone')}</div><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>`).join('')||'<section class="card">No matching drams.</section>'}`;
  }
@@ -268,6 +304,10 @@ function bind(){
  const saveNew=document.getElementById('saveNewBottle');if(saveNew)saveNew.onclick=createNewBottle;
  document.querySelectorAll('[data-tasting-view]').forEach(el=>el.onclick=()=>{tastingView=el.dataset.tastingView;selectedSessionId=null;selectedDramId=null;tastingSearch='';render()});
  document.querySelectorAll('[data-dram-id]').forEach(el=>el.onclick=()=>{selectedDramId=el.dataset.dramId;render();window.scrollTo(0,0)});
+ const dramToggle=document.getElementById('dramFilterToggle');if(dramToggle)dramToggle.onclick=()=>{dramFiltersOpen=!dramFiltersOpen;render()};
+ document.querySelectorAll('[data-dram-filter]').forEach(el=>el.onchange=()=>{dramFilters[el.dataset.dramFilter]=el.value;render()});
+ const clearDramFilters=document.getElementById('clearDramFilters');if(clearDramFilters)clearDramFilters.onclick=()=>{dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:''};render()};
+ const clearDramSearch=document.getElementById('clearDramSearch');if(clearDramSearch)clearDramSearch.onclick=()=>{tastingSearch='';render()};
  const backDram=document.getElementById('backDram');if(backDram)backDram.onclick=()=>{selectedDramId=null;render()};
  const backTastings=document.getElementById('backTastings');if(backTastings)backTastings.onclick=()=>{selectedSessionId=null;render()};
  document.querySelectorAll('[data-session-id]').forEach(el=>el.onclick=()=>{selectedSessionId=el.dataset.sessionId;render();window.scrollTo(0,0)});

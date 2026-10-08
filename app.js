@@ -201,27 +201,28 @@ function tastingsPage(){
  const sessions=[...s.sessions].sort((a,b)=>dateValue(b['Date'])-dateValue(a['Date']));
  const dramsBySession=new Map();s.drams.forEach(d=>{const k=String(d['Session ID']||'');if(!dramsBySession.has(k))dramsBySession.set(k,[]);dramsBySession.get(k).push(d)});
  const dramName=d=>{const w=wi.get(String(d['Whisky ID']))||{};return [w['Distillery']||w['Brand / Producer']||'Unknown whisky',w['Expression']].filter(Boolean).join(' · ')};
+ const cleanNote=v=>{let t=String(v??'');if(t.startsWith('[WCMETA]')){const raw=t.slice(8);const i=raw.indexOf(']');if(i>=0)t=raw.slice(i+1);else return ''; }return t.replace(/%[0-9A-F]{2}/gi,' ').trim()};
  const fmt=v=>{const d=dateValue(v);return d?new Date(d).toLocaleDateString():'Date unknown'};
  if(selectedSessionId){
   const sess=s.sessions.find(x=>String(x['Session ID'])===String(selectedSessionId));if(!sess){selectedSessionId=null;return tastingsPage()}
   const drams=[...(dramsBySession.get(String(selectedSessionId))||[])].sort((a,b)=>(num(a['Dram #'])??999)-(num(b['Dram #'])??999));
   return `<div class="topbar"><button class="backBtn" id="backTastings">‹ Tastings</button><div class="title">Session Details</div></div>
-  <section class="card"><h2>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</h2>
+  <section class="card tastingSessionHero"><h2>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</h2>
   <div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Session Type']||'Tasting')} · ${esc(sess['Status']||'')}</div>
   <p>${esc(sess['Location']||'')}</p><p class="meta">With: ${esc(sess['Companions']||'—')} · Blind: ${esc(sess['Blind?']||'—')}</p>
   ${sess['Notes']?`<p>${esc(sess['Notes'])}</p>`:''}</section>
   <div class="sectionHead"><h2>Drams (${drams.length})</h2></div>
-  ${drams.map((d,i)=>`<section class="card"><strong>${esc(d['Dram #']||i+1)}. ${esc(dramName(d))}</strong><div class="meta">${esc(d['Tasting ID']||'')} · ${d['Score']!==''&&d['Score']!=null?'Score: '+esc(d['Score']):'Not scored'}</div>
-  ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision'].filter(k=>d[k]).map(k=>`<p><strong>${esc(k)}:</strong> ${esc(d[k])}</p>`).join('')}</section>`).join('')||'<section class="card">No drams recorded for this session.</section>'}`;
+  ${drams.map((d,i)=>`<section class="card tastingDram"><strong>${esc(d['Dram #']||i+1)}. ${esc(dramName(d))}</strong><div class="meta">${esc(d['Tasting ID']||'')} · ${d['Score']!==''&&d['Score']!=null?'Score: '+esc(d['Score']):'Not scored'}</div>
+  ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision'].filter(k=>d[k]&&cleanNote(d[k])).map(k=>`<div class="tastingNote"><span>${esc(k)}</span><p>${esc(cleanNote(d[k]))}</p></div>`).join('')}</section>`).join('')||'<section class="card">No drams recorded for this session.</section>'}`;
  }
  const q=tastingSearch.trim().toLowerCase();
  const filtered=sessions.filter(x=>!q||[x['Session Name'],x['Location'],x['Companions'],x['Session Type'],x['Date']].some(v=>String(v??'').toLowerCase().includes(q))||((dramsBySession.get(String(x['Session ID']))||[]).some(d=>dramName(d).toLowerCase().includes(q))));
  const scored=s.drams.map(d=>num(d['Score'])).filter(v=>v!==null);
  return `<div class="topbar"><div><div class="title">Tastings</div><div class="sync">${sessions.length} sessions · ${s.drams.length} drams</div></div><button class="iconBtn" id="tastingsRefresh">↻</button></div>
  <section class="collectionSummary"><div><strong>${sessions.length}</strong><span>Sessions</span></div><div><strong>${s.drams.length}</strong><span>Drams</span></div><div><strong>${scored.length}</strong><span>Scored</span></div><div><strong>${scored.length?(scored.reduce((a,b)=>a+b,0)/scored.length).toFixed(1):'—'}</strong><span>Avg score</span></div></section>
- <label>Search sessions, companions or whiskies<input type="search" id="tastingSearch" placeholder="Search tastings…" value="${esc(tastingSearch)}"></label>
+ <label class="tastingSearchLabel">Search sessions, companions or whiskies<input type="search" id="tastingSearch" placeholder="Search tastings…" value="${esc(tastingSearch)}"></label>
  <div class="sectionHead"><h2>Sessions (${filtered.length})</h2></div>
- ${filtered.map(sess=>{const ds=dramsBySession.get(String(sess['Session ID']))||[];return `<button type="button" class="card" data-session-id="${esc(sess['Session ID'])}" style="width:100%;text-align:left;display:block;margin:10px 0"><strong>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</strong><div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Location']||'')} · ${ds.length} drams</div><div class="meta">${esc(sess['Session Type']||'')} ${sess['Companions']?'· '+esc(sess['Companions']):''}</div></button>`}).join('')||'<section class="card">No matching sessions.</section>'}`;
+ ${filtered.map(sess=>{const ds=dramsBySession.get(String(sess['Session ID']))||[];return `<button type="button" class="card tastingSessionRow" data-session-id="${esc(sess['Session ID'])}" ><strong>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</strong><div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Location']||'')} · ${ds.length} drams</div><div class="meta">${esc(sess['Session Type']||'')} ${sess['Companions']?'· '+esc(sess['Companions']):''}</div></button>`}).join('')||'<section class="card">No matching sessions.</section>'}`;
 }
 function render(){
  const hasToken=!!sessionStorage.getItem('wc2ApiToken');

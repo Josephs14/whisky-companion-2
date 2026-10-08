@@ -5,6 +5,7 @@ let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery=''
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
+const dateInput=v=>{if(v===null||v===undefined||v==='')return '';if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.toISOString().slice(0,10)}const s=String(v);return /^\d{4}-\d{2}-\d{2}/.test(s)?s.slice(0,10):s};
 const dateValue=v=>{if(v===null||v===undefined||v==='')return 0;if(typeof v==='number'){const d=new Date(Date.UTC(1899,11,30)+v*86400000);return d.getTime()}const s=String(v).trim();let d=new Date(s);if(!isNaN(d))return d.getTime();const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime():0};
 function toast(msg){let n=document.querySelector('.notice');if(!n){n=document.createElement('div');n.className='notice';document.body.appendChild(n)}n.textContent=msg;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>n.remove(),2800)}
 function state(){return window.WC2?WC2.getState():{whiskies:[],bottles:[],sessions:[],drams:[]}}
@@ -126,17 +127,18 @@ function bottleDetail(b,w){
   const whiskyFields=['Whisky Type','Distillery','Bottler','Brand / Producer','Expression','Series / Collection','Release Type','Country','Region','Bottling Year','Age Years','Age Statement','ABV %','Bottle Size ml','Cask Type / Maturation','Cask Number','Outturn','Peated','Whiskybase ID','Whiskybase URL','Verification Status','Last Verified'];
   const fields=editSection==='bottle'?bottleFields:whiskyFields, source=editSection==='bottle'?b:w;
   const form=fields.map(key=>{
-   const val=source[key]??'',label=esc(key),inputId=esc(key);
+   const dateField=['Acquisition Date','Open Date','Finished Date','Last Verified'].includes(key);
+   const val=dateField?dateInput(source[key]):(source[key]??''),label=esc(key),inputId=esc(key);
    if(key==='Status')return `<label>${label}<select data-edit-field="${inputId}" data-edit-entity="bottle">${['Sealed','Open','Finished'].map(v=>`<option value="${v}" ${String(val)===v?'selected':''}>${v}</option>`).join('')}</select></label>`;
    if(key==='Notes')return `<label>${label}<textarea data-edit-field="${inputId}" data-edit-entity="bottle" rows="4">${esc(val)}</textarea></label>`;
-   const type=['Purchase Price','Current Fill %','Age Years','ABV %','Bottle Size ml','Bottling Year','Outturn','Bottle Number'].includes(key)?'number':'text';
+   const type=dateField?'date':(['Purchase Price','Current Fill %','Age Years','ABV %','Bottle Size ml','Bottling Year','Outturn'].includes(key)?'number':'text');
    return `<label>${label}<input type="${type}" data-edit-field="${inputId}" data-edit-entity="${editSection}" value="${esc(val)}"></label>`;
   }).join('');
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div>
   <div class="segmented editTabs"><button data-edit-section="bottle" class="${editSection==='bottle'?'active':''}">Bottle Details</button><button data-edit-section="whisky" class="${editSection==='whisky'?'active':''}">Whisky Details</button></div>
   <section class="card setup"><div class="meta">${editSection==='whisky'?'Shared release information — edits will affect every linked bottle and tasting.':'Details of this specific physical bottle.'}</div>
   <div class="editFields">${form}</div><button class="primary" id="saveBottleEdit">Save Changes</button>
-  <div class="meta" style="margin-top:12px">The full editor is ready for review. The audited UPDATE_BOTTLE / UPDATE_WHISKY backend operations are still pending. Until then, only supported status and fill changes can be saved.</div></section>`;
+  <div class="meta" style="margin-top:12px">Save updates this tab only. Status, fill and lifecycle dates require their dedicated workflow and cannot be edited here. Whisky changes affect all linked bottles and tastings.</div></section>`;
  }
  if(bottleView==='taste'){
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Taste Bottle</div><span></span></div><section class="detailHero card"><div class="detailBottle">🥃</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||'Bottle')}</h1><div class="meta">Linked to ${esc(id)}</div></div></section><section class="card setup"><label>Score<input id="tasteScore" type="number" min="0" max="100" step="0.5" placeholder="Optional"></label><label>Nose<textarea id="tasteNose" rows="2"></textarea></label><label>Palate<textarea id="tastePalate" rows="2"></textarea></label><label>Finish<textarea id="tasteFinish" rows="2"></textarea></label><label>Notes<textarea id="tasteNotes" rows="3"></textarea></label><button class="primary" id="saveBottleTaste">Save Tasting</button></section>`;
@@ -188,23 +190,30 @@ function bind(){
 async function saveBottleChanges(){
  const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;
  const w=state().whiskies.find(x=>String(x['Whisky ID'])===String(b['Whisky ID']))||{};
- const changed=[...document.querySelectorAll('[data-edit-field]')].filter(el=>String(el.value)!==String((el.dataset.editEntity==='bottle'?b:w)[el.dataset.editField]??''));
- if(!changed.length){toast('No changes to save.');return}
- const unsupported=changed.filter(el=>el.dataset.editEntity!=='bottle'||!['Status','Current Fill %'].includes(el.dataset.editField));
- if(unsupported.length){toast('These fields require the audited update API. No changes were saved.');return}
- const status=changed.find(el=>el.dataset.editField==='Status')?.value||String(b['Status']);
- const fillEl=changed.find(el=>el.dataset.editField==='Current Fill %'),fill=fillEl?num(fillEl.value):null;
- if(fillEl&&(fill===null||fill<0||fill>100)){toast('Fill must be 0–100%.');return}
- if(status==='Sealed'&&status!==b['Status']){toast('Reverting to Sealed needs the update API.');return}
- if(fillEl&&status!=='Open'){toast('Fill updates require an Open bottle.');return}
+ const source=editSection==='bottle'?b:w;
+ const protectedBottle=new Set(['Status','Current Fill %','Open Date','Open Date Precision','Finished Date','Finished Date Precision','Whisky ID','Bottle ID','Created At','Last Modified']);
+ const protectedWhisky=new Set(['Whisky ID','Created At','Last Modified']);
+ const dates=new Set(['Acquisition Date','Last Verified']);
+ const changes={};
+ for(const el of document.querySelectorAll('[data-edit-field]')){
+  const key=el.dataset.editField;
+  const old=dates.has(key)?dateInput(source[key]):String(source[key]??'');
+  const value=el.value;
+  if(String(value)===String(old))continue;
+  if(editSection==='bottle'&&protectedBottle.has(key)){toast('Status, fill and lifecycle dates use dedicated actions. No changes saved.');return}
+  if(editSection==='whisky'&&protectedWhisky.has(key)){toast('This field cannot be edited.');return}
+  if(el.type==='number'&&value!==''&&!Number.isFinite(Number(value))){toast('Invalid number: '+key);return}
+  changes[key]=el.type==='number'&&value!==''?Number(value):value;
+ }
+ if(!Object.keys(changes).length){toast('No changes to save.');return}
+ if(editSection==='whisky'&&!confirm('These whisky details are shared by all linked bottles and tastings. Save changes?'))return;
+ const btn=document.getElementById('saveBottleEdit');if(btn){btn.disabled=true;btn.textContent='Saving…'}
  try{
-  if(status!==b['Status']){
-   if(status==='Open')await WC2.api('OPEN_BOTTLE',{bottleId:b['Bottle ID'],openDate:new Date().toISOString().slice(0,10)});
-   else if(status==='Finished')await WC2.api('FINISH_BOTTLE',{bottleId:b['Bottle ID'],finishedDate:new Date().toISOString().slice(0,10)});
-  }
-  if(fillEl)await WC2.api('CHANGE_FILL',{bottleId:b['Bottle ID'],fillPercent:fill,eventDate:new Date().toISOString().slice(0,10)});
-  await WC2.refresh();bottleView='detail';render();toast('Bottle updated');
- }catch(e){toast('Update failed: '+e.message)}
+  const action=editSection==='bottle'?'UPDATE_BOTTLE':'UPDATE_WHISKY';
+  const id=editSection==='bottle'?{bottleId:b['Bottle ID']}:{whiskyId:b['Whisky ID']};
+  await WC2.api(action,{...id,changes});
+  await WC2.refresh();bottleView='detail';render();toast('Changes saved');
+ }catch(e){toast('Save failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Save Changes'}}
 }
 async function saveBottleTasting(){
  const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;

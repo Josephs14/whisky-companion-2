@@ -7,3 +7,20 @@
 .detailActions.four{grid-template-columns:repeat(4,1fr)}.dangerAction{color:#9b2c2c}.setup label{display:block;font-size:11px;color:var(--muted);font-weight:700;margin:10px 0}.setup select,.setup textarea,.setup input{width:100%;margin-top:5px;border:1px solid var(--line);border-radius:11px;padding:10px;background:#fff;font:inherit;box-sizing:border-box}.setup textarea{resize:vertical;line-height:1.4}
 
 .bottleThumb{width:100%;height:100%;max-height:90px;object-fit:contain;display:block}.bottleHeroImage{width:100%;height:100%;max-height:190px;object-fit:contain;display:block}
+
+/* Tastings mobile layout */
+.tastingSearchLabel{display:block;font-size:12px;font-weight:650;color:var(--muted);margin:16px 0 10px}
+.tastingSearchLabel input{display:block;width:100%;height:44px;margin-top:7px;padding:0 13px;border:1px solid var(--line);border-radius:13px;background:white;font:inherit;font-size:15px;color:var(--ink)}
+.tastingSessionRow{display:block;width:100%;text-align:left;padding:15px 16px;margin:0 0 9px;border-radius:16px;color:var(--ink);font:inherit;cursor:pointer;line-height:1.4}
+.tastingSessionRow strong{display:block;font-size:15px;line-height:1.35;color:var(--ink);overflow-wrap:anywhere}
+.tastingSessionRow .meta{font-size:12px;margin-top:5px;line-height:1.4}
+.tastingSessionHero{padding:18px;margin-bottom:15px;overflow:hidden}
+.tastingSessionHero h2{font-size:21px;line-height:1.3;margin:0 0 12px;overflow-wrap:anywhere}
+.tastingSessionHero p{font-size:13px;margin:10px 0;overflow-wrap:anywhere}
+.tastingDram{padding:16px;margin-bottom:10px;overflow:hidden}
+.tastingDram>strong{display:block;font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+.tastingDram .meta{margin:7px 0 12px;overflow-wrap:anywhere}
+.tastingNote{border-top:1px solid var(--line);padding:10px 0 0;margin-top:10px}
+.tastingNote span{display:block;font-size:11px;font-weight:750;color:var(--muted);margin-bottom:4px}
+.tastingNote p{font-size:13px;line-height:1.5;margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.tastingSessionHero,.tastingDram,.tastingSessionRow{max-width:100%;min-width:0}

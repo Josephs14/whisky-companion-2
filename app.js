@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail';
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -122,7 +122,21 @@ function bottleDetail(b,w){
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">History</div><span></span></div><section class="card list">${events.length?events.map(x=>`<div class="row"><div class="grow"><div class="name">${esc(x.type)}</div><div class="meta">${esc(x.date||'Date unknown')}${x.note?' · '+esc(x.note):''}</div></div></div>`).join(''):'<div class="placeholder">No history recorded for this bottle.</div>'}</section>`;
  }
  if(bottleView==='edit'){
-  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div><section class="card setup"><label>Status<select id="editStatus"><option ${b['Status']==='Sealed'?'selected':''}>Sealed</option><option ${b['Status']==='Open'?'selected':''}>Open</option><option ${b['Status']==='Finished'?'selected':''}>Finished</option></select></label><label>Current fill %<input id="editFill" type="number" min="0" max="100" value="${esc(b['Current Fill %'])}"></label><div class="meta">Notes editing requires the audited UPDATE_BOTTLE API and is not yet available.</div><button class="primary" id="saveBottleEdit">Save Changes</button><div class="meta" style="margin-top:10px">Status changes use the controlled bottle operations so lifecycle and fill history remain consistent.</div></section>`;
+  const bottleFields=['Bottle Number','Collection Role','Acquisition Date','Acquisition Date Precision','Acquisition Type','Shop / Source','Purchase Price','Currency','Status','Open Date','Open Date Precision','Finished Date','Finished Date Precision','Current Fill %','Replace When Empty','Notes','Verification Status'];
+  const whiskyFields=['Whisky Type','Distillery','Bottler','Brand / Producer','Expression','Series / Collection','Release Type','Country','Region','Bottling Year','Age Years','Age Statement','ABV %','Bottle Size ml','Cask Type / Maturation','Cask Number','Outturn','Peated','Whiskybase ID','Whiskybase URL','Verification Status','Last Verified'];
+  const fields=editSection==='bottle'?bottleFields:whiskyFields, source=editSection==='bottle'?b:w;
+  const form=fields.map(key=>{
+   const val=source[key]??'',label=esc(key),inputId=esc(key);
+   if(key==='Status')return `<label>${label}<select data-edit-field="${inputId}" data-edit-entity="bottle">${['Sealed','Open','Finished'].map(v=>`<option value="${v}" ${String(val)===v?'selected':''}>${v}</option>`).join('')}</select></label>`;
+   if(key==='Notes')return `<label>${label}<textarea data-edit-field="${inputId}" data-edit-entity="bottle" rows="4">${esc(val)}</textarea></label>`;
+   const type=['Purchase Price','Current Fill %','Age Years','ABV %','Bottle Size ml','Bottling Year','Outturn','Bottle Number'].includes(key)?'number':'text';
+   return `<label>${label}<input type="${type}" data-edit-field="${inputId}" data-edit-entity="${editSection}" value="${esc(val)}"></label>`;
+  }).join('');
+  return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Edit Bottle</div><span></span></div>
+  <div class="segmented editTabs"><button data-edit-section="bottle" class="${editSection==='bottle'?'active':''}">Bottle Details</button><button data-edit-section="whisky" class="${editSection==='whisky'?'active':''}">Whisky Details</button></div>
+  <section class="card setup"><div class="meta">${editSection==='whisky'?'Shared release information — edits will affect every linked bottle and tasting.':'Details of this specific physical bottle.'}</div>
+  <div class="editFields">${form}</div><button class="primary" id="saveBottleEdit">Save Changes</button>
+  <div class="meta" style="margin-top:12px">The full editor is ready for review. The audited UPDATE_BOTTLE / UPDATE_WHISKY backend operations are still pending. Until then, only supported status and fill changes can be saved.</div></section>`;
  }
  if(bottleView==='taste'){
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Taste Bottle</div><span></span></div><section class="detailHero card"><div class="detailBottle">🥃</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||'Bottle')}</h1><div class="meta">Linked to ${esc(id)}</div></div></section><section class="card setup"><label>Score<input id="tasteScore" type="number" min="0" max="100" step="0.5" placeholder="Optional"></label><label>Nose<textarea id="tasteNose" rows="2"></textarea></label><label>Palate<textarea id="tastePalate" rows="2"></textarea></label><label>Finish<textarea id="tasteFinish" rows="2"></textarea></label><label>Notes<textarea id="tasteNotes" rows="3"></textarea></label><button class="primary" id="saveBottleTaste">Save Tasting</button></section>`;
@@ -165,6 +179,7 @@ function bind(){
  const tasteBottle=document.getElementById('tasteBottle');if(tasteBottle)tasteBottle.onclick=()=>{bottleView='taste';render()};
  const historyBottle=document.getElementById('historyBottle');if(historyBottle)historyBottle.onclick=()=>{bottleView='history';render()};
  const delBottle=document.getElementById('deleteBottle');if(delBottle)delBottle.onclick=()=>{if(confirm('Delete is not enabled yet because the API has no controlled DELETE_BOTTLE operation. No data has been changed.')){}};
+ document.querySelectorAll('[data-edit-section]').forEach(el=>el.onclick=()=>{editSection=el.dataset.editSection;render()});
  const saveEdit=document.getElementById('saveBottleEdit');if(saveEdit)saveEdit.onclick=saveBottleChanges;
  const saveTaste=document.getElementById('saveBottleTaste');if(saveTaste)saveTaste.onclick=saveBottleTasting;
  const settings=document.getElementById('settings');if(settings)settings.onclick=()=>{WC2.setToken('');render()};
@@ -172,15 +187,22 @@ function bind(){
 }
 async function saveBottleChanges(){
  const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;
- const status=document.getElementById('editStatus').value,fill=num(document.getElementById('editFill').value);
+ const w=state().whiskies.find(x=>String(x['Whisky ID'])===String(b['Whisky ID']))||{};
+ const changed=[...document.querySelectorAll('[data-edit-field]')].filter(el=>String(el.value)!==String((el.dataset.editEntity==='bottle'?b:w)[el.dataset.editField]??''));
+ if(!changed.length){toast('No changes to save.');return}
+ const unsupported=changed.filter(el=>el.dataset.editEntity!=='bottle'||!['Status','Current Fill %'].includes(el.dataset.editField));
+ if(unsupported.length){toast('These fields require the audited update API. No changes were saved.');return}
+ const status=changed.find(el=>el.dataset.editField==='Status')?.value||String(b['Status']);
+ const fillEl=changed.find(el=>el.dataset.editField==='Current Fill %'),fill=fillEl?num(fillEl.value):null;
+ if(fillEl&&(fill===null||fill<0||fill>100)){toast('Fill must be 0–100%.');return}
+ if(status==='Sealed'&&status!==b['Status']){toast('Reverting to Sealed needs the update API.');return}
+ if(fillEl&&status!=='Open'){toast('Fill updates require an Open bottle.');return}
  try{
-  if(fill!==null&&(fill<0||fill>100)){toast('Fill must be 0–100%.');return}
   if(status!==b['Status']){
    if(status==='Open')await WC2.api('OPEN_BOTTLE',{bottleId:b['Bottle ID'],openDate:new Date().toISOString().slice(0,10)});
    else if(status==='Finished')await WC2.api('FINISH_BOTTLE',{bottleId:b['Bottle ID'],finishedDate:new Date().toISOString().slice(0,10)});
-   else {toast('Changing a bottle back to Sealed is not exposed by the controlled API.');return}
   }
-  if(status==='Open'&&fill!==null&&fill!==num(b['Current Fill %']))await WC2.api('CHANGE_FILL',{bottleId:b['Bottle ID'],fillPercent:fill,eventDate:new Date().toISOString().slice(0,10)});
+  if(fillEl)await WC2.api('CHANGE_FILL',{bottleId:b['Bottle ID'],fillPercent:fill,eventDate:new Date().toISOString().slice(0,10)});
   await WC2.refresh();bottleView='detail';render();toast('Bottle updated');
  }catch(e){toast('Update failed: '+e.message)}
 }

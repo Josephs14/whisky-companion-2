@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle', addMode='existing', selectedSessionId=null, tastingSearch='';
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -198,31 +198,52 @@ function addBottlePage(){
 }
 function tastingsPage(){
  const s=state(),wi=new Map(s.whiskies.map(w=>[String(w['Whisky ID']),w]));
- const sessions=[...s.sessions].sort((a,b)=>dateValue(b['Date'])-dateValue(a['Date']));
+ const standalone=x=>/standalone/i.test([x['Session Name'],x['Session Type']].join(' '));
+ const sessions=[...s.sessions].filter(x=>!standalone(x)).sort((a,b)=>dateValue(b['Date'])-dateValue(a['Date']));
+ const allSessions=new Map(s.sessions.map(x=>[String(x['Session ID']),x]));
  const dramsBySession=new Map();s.drams.forEach(d=>{const k=String(d['Session ID']||'');if(!dramsBySession.has(k))dramsBySession.set(k,[]);dramsBySession.get(k).push(d)});
- const dramName=d=>{const w=wi.get(String(d['Whisky ID']))||{};return [w['Distillery']||w['Brand / Producer']||'Unknown whisky',w['Expression']].filter(Boolean).join(' · ')};
- const cleanNote=v=>{let t=String(v??'');if(t.startsWith('[WCMETA]')){const raw=t.slice(8);const i=raw.indexOf(']');if(i>=0)t=raw.slice(i+1);else return ''; }return t.replace(/%[0-9A-F]{2}/gi,' ').trim()};
+ const whisky=d=>wi.get(String(d['Whisky ID']))||{};
+ const identity=d=>{const w=whisky(d);return [w['Expression'],w['Age Years']?w['Age Years']+' years':'',w['ABV %']?w['ABV %']+'%':''].filter(Boolean).join(' · ')||w['Brand / Producer']||'Unidentified bottle'};
+ const distillery=d=>whisky(d)['Distillery']||whisky(d)['Brand / Producer']||'Unknown distillery';
+ const dramName=d=>[distillery(d),identity(d)].join(' · ');
  const fmt=v=>{const d=dateValue(v);return d?new Date(d).toLocaleDateString():'Date unknown'};
+ const unique=new Set(s.drams.map(d=>String(d['Whisky ID']||'').trim()).filter(Boolean));
+ const scored=s.drams.map(d=>num(d['Score'])).filter(v=>v!==null);
+ const heading=`<div class="topbar"><div><div class="title">Tastings</div><div class="sync">${sessions.length} sessions · ${unique.size} unique whiskies · ${s.drams.length} tasting records</div></div><button class="iconBtn" id="tastingsRefresh">↻</button></div>`;
+ const tabs=`<div class="segmented tastingTabs"><button data-tasting-view="sessions" class="${tastingView==='sessions'?'active':''}">Sessions</button><button data-tasting-view="drams" class="${tastingView==='drams'?'active':''}">All Drams</button></div>`;
+ if(selectedDramId){
+  const d=s.drams.find(x=>String(x['Tasting ID'])===String(selectedDramId));if(!d){selectedDramId=null;return tastingsPage()}
+  const sess=allSessions.get(String(d['Session ID']))||{};
+  return `<div class="topbar"><button class="backBtn" id="backDram">‹ Back</button><div class="title">Dram Details</div></div><section class="card tastingSessionHero">
+  <div class="eyebrow">${esc(distillery(d))}</div><h2>${esc(identity(d))}</h2>
+  <div class="meta">${esc(fmt(d['Tasting Date']||sess['Date']))} · ${esc(sess['Session Name']||'Standalone tasting')}</div>
+  <div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span><span>Dram # <b>${esc(d['Dram #']||'—')}</b></span></div>
+  ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision','Memorability'].filter(k=>d[k]).map(k=>`<div class="tastingNote"><span>${esc(k)}</span><p>${esc(String(d[k]).startsWith('[WCMETA]')?'Legacy metadata (not a tasting note)':d[k])}</p></div>`).join('')}
+  <div class="meta">Tasting ID: ${esc(d['Tasting ID'])}</div></section>`;
+ }
  if(selectedSessionId){
-  const sess=s.sessions.find(x=>String(x['Session ID'])===String(selectedSessionId));if(!sess){selectedSessionId=null;return tastingsPage()}
+  const sess=allSessions.get(String(selectedSessionId));if(!sess){selectedSessionId=null;return tastingsPage()}
   const drams=[...(dramsBySession.get(String(selectedSessionId))||[])].sort((a,b)=>(num(a['Dram #'])??999)-(num(b['Dram #'])??999));
   return `<div class="topbar"><button class="backBtn" id="backTastings">‹ Tastings</button><div class="title">Session Details</div></div>
   <section class="card tastingSessionHero"><h2>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</h2>
   <div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Session Type']||'Tasting')} · ${esc(sess['Status']||'')}</div>
-  <p>${esc(sess['Location']||'')}</p><p class="meta">With: ${esc(sess['Companions']||'—')} · Blind: ${esc(sess['Blind?']||'—')}</p>
-  ${sess['Notes']?`<p>${esc(sess['Notes'])}</p>`:''}</section>
+  <p>${esc(sess['Location']||'')}</p><p class="meta">With: ${esc(sess['Companions']||'—')} · Blind: ${esc(sess['Blind?']||'—')}</p></section>
   <div class="sectionHead"><h2>Drams (${drams.length})</h2></div>
-  ${drams.map((d,i)=>`<section class="card tastingDram"><strong>${esc(d['Dram #']||i+1)}. ${esc(dramName(d))}</strong><div class="meta">${esc(d['Tasting ID']||'')} · ${d['Score']!==''&&d['Score']!=null?'Score: '+esc(d['Score']):'Not scored'}</div>
-  ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision'].filter(k=>d[k]&&cleanNote(d[k])).map(k=>`<div class="tastingNote"><span>${esc(k)}</span><p>${esc(cleanNote(d[k]))}</p></div>`).join('')}</section>`).join('')||'<section class="card">No drams recorded for this session.</section>'}`;
+  ${drams.map((d,i)=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>`).join('')||'<section class="card">No drams recorded.</section>'}`;
  }
  const q=tastingSearch.trim().toLowerCase();
+ if(tastingView==='drams'){
+  const rows=[...s.drams].sort((a,b)=>dateValue(b['Tasting Date']||allSessions.get(String(b['Session ID']))?.['Date'])-dateValue(a['Tasting Date']||allSessions.get(String(a['Session ID']))?.['Date'])).filter(d=>!q||[dramName(d),d['Tasting ID'],allSessions.get(String(d['Session ID']))?.['Session Name']].some(v=>String(v??'').toLowerCase().includes(q)));
+  return `${heading}${tabs}<section class="collectionSummary"><div><strong>${unique.size}</strong><span>Unique whiskies</span></div><div><strong>${s.drams.length}</strong><span>Tasting records</span></div></section>
+  <label class="tastingSearchLabel">Search all drams<input type="search" id="tastingSearch" placeholder="Distillery, expression or session…" value="${esc(tastingSearch)}"></label>
+  <div class="sectionHead"><h2>All Drams (${rows.length})</h2></div>
+  ${rows.map(d=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="meta">${esc(fmt(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']))} · ${esc(allSessions.get(String(d['Session ID']))?.['Session Name']||'Standalone')}</div><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>`).join('')||'<section class="card">No matching drams.</section>'}`;
+ }
  const filtered=sessions.filter(x=>!q||[x['Session Name'],x['Location'],x['Companions'],x['Session Type'],x['Date']].some(v=>String(v??'').toLowerCase().includes(q))||((dramsBySession.get(String(x['Session ID']))||[]).some(d=>dramName(d).toLowerCase().includes(q))));
- const scored=s.drams.map(d=>num(d['Score'])).filter(v=>v!==null);
- return `<div class="topbar"><div><div class="title">Tastings</div><div class="sync">${sessions.length} sessions · ${s.drams.length} drams</div></div><button class="iconBtn" id="tastingsRefresh">↻</button></div>
- <section class="collectionSummary"><div><strong>${sessions.length}</strong><span>Sessions</span></div><div><strong>${s.drams.length}</strong><span>Drams</span></div><div><strong>${scored.length}</strong><span>Scored</span></div><div><strong>${scored.length?(scored.reduce((a,b)=>a+b,0)/scored.length).toFixed(1):'—'}</strong><span>Avg score</span></div></section>
+ return `${heading}${tabs}<section class="collectionSummary"><div><strong>${sessions.length}</strong><span>Sessions</span></div><div><strong>${unique.size}</strong><span>Unique whiskies</span></div><div><strong>${s.drams.length}</strong><span>Tasting records</span></div><div><strong>${scored.length?(scored.reduce((a,b)=>a+b,0)/scored.length).toFixed(1):'—'}</strong><span>Avg score</span></div></section>
  <label class="tastingSearchLabel">Search sessions, companions or whiskies<input type="search" id="tastingSearch" placeholder="Search tastings…" value="${esc(tastingSearch)}"></label>
  <div class="sectionHead"><h2>Sessions (${filtered.length})</h2></div>
- ${filtered.map(sess=>{const ds=dramsBySession.get(String(sess['Session ID']))||[];return `<button type="button" class="card tastingSessionRow" data-session-id="${esc(sess['Session ID'])}" ><strong>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</strong><div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Location']||'')} · ${ds.length} drams</div><div class="meta">${esc(sess['Session Type']||'')} ${sess['Companions']?'· '+esc(sess['Companions']):''}</div></button>`}).join('')||'<section class="card">No matching sessions.</section>'}`;
+ ${filtered.map(sess=>{const ds=dramsBySession.get(String(sess['Session ID']))||[];return `<button type="button" class="card tastingSessionRow" data-session-id="${esc(sess['Session ID'])}"><strong>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</strong><div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Location']||'')} · ${ds.length} drams</div><div class="meta">${esc(sess['Session Type']||'')} ${sess['Companions']?'· '+esc(sess['Companions']):''}</div></button>`}).join('')||'<section class="card">No matching sessions.</section>'}`;
 }
 function render(){
  const hasToken=!!sessionStorage.getItem('wc2ApiToken');
@@ -231,7 +252,7 @@ function render(){
  bind();
 }
 function bind(){
- document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==='Tastings')selectedSessionId=null;render()});
+ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==='Tastings'){selectedSessionId=null;selectedDramId=null}render()});
  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{tab=b.dataset.go;render()});
  document.querySelectorAll('#addBottleHome,#addBottleCollection').forEach(el=>el.onclick=()=>{tab='AddBottle';render();window.scrollTo(0,0)});
  document.querySelectorAll('[data-add-mode]').forEach(el=>el.onclick=()=>{addMode=el.dataset.addMode;render()});
@@ -245,6 +266,9 @@ function bind(){
   };
  }
  const saveNew=document.getElementById('saveNewBottle');if(saveNew)saveNew.onclick=createNewBottle;
+ document.querySelectorAll('[data-tasting-view]').forEach(el=>el.onclick=()=>{tastingView=el.dataset.tastingView;selectedSessionId=null;selectedDramId=null;tastingSearch='';render()});
+ document.querySelectorAll('[data-dram-id]').forEach(el=>el.onclick=()=>{selectedDramId=el.dataset.dramId;render();window.scrollTo(0,0)});
+ const backDram=document.getElementById('backDram');if(backDram)backDram.onclick=()=>{selectedDramId=null;render()};
  const backTastings=document.getElementById('backTastings');if(backTastings)backTastings.onclick=()=>{selectedSessionId=null;render()};
  document.querySelectorAll('[data-session-id]').forEach(el=>el.onclick=()=>{selectedSessionId=el.dataset.sessionId;render();window.scrollTo(0,0)});
  const tastingInput=document.getElementById('tastingSearch');if(tastingInput)tastingInput.oninput=e=>{tastingSearch=e.target.value;render();const el=document.getElementById('tastingSearch');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}};

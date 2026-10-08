@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle';
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', editSection='bottle', addMode='existing';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -42,7 +42,7 @@ function home(){
  <div class="sectionHead"><h2>Trip</h2></div>
  <section class="card trip" id="tripCard"><div class="tripIcon">✈️</div><div class="grow"><div class="name">Scotland Trip 2026</div><div class="meta">7 days · distilleries · tastings · buying targets</div></div><div>›</div></section>
  <div class="sectionHead"><h2>Quick Actions</h2></div>
- <section class="quick"><button><span>🍾</span>Add Bottle</button><button><span>🥃</span>New Tasting</button><button data-go="Live"><span>📷</span>Live Mode</button><button id="refresh"><span>↻</span>Refresh</button></section>`;
+ <section class="quick"><button id="addBottleHome"><span>🍾</span>Add Bottle</button><button><span>🥃</span>New Tasting</button><button data-go="Live"><span>📷</span>Live Mode</button><button id="refresh"><span>↻</span>Refresh</button></section>`;
 }
 
 function collection(){
@@ -154,15 +154,37 @@ function bottleDetail(b,w){
 function generic(title,text){return `<div class="topbar"><div class="title">${title}</div></div><div class="card placeholder"><b>${title}</b><br><br>${text}</div>`}
 function setup(){return `<div class="topbar"><div class="brand"><div class="logo">🥃</div><div class="title">Whisky Companion</div></div></div><div class="card setup"><div class="name">Connect this device</div><div class="meta">Enter the private API token for this development device. It is stored only for this browser session and is not committed to GitHub.</div><input id="tokenInput" type="password" autocomplete="off" placeholder="API token"><button class="primary" id="saveToken">Connect & Refresh</button></div>`}
 function bottom(){return `<nav class="bottom"><div class="bottomInner">${[['Home','⌂'],['Collection','🍾'],['Tastings','🥃'],['Live','📷'],['Insights','▥']].map(([x,i])=>`<button data-tab="${x}" class="${tab===x?'active':''}"><span>${i}</span>${x}</button>`).join('')}</div></nav>`}
+function addBottlePage(){
+ const whiskies=[...state().whiskies].sort((a,b)=>String(a['Distillery']||'').localeCompare(String(b['Distillery']||''))||String(a['Expression']||'').localeCompare(String(b['Expression']||'')));
+ const option=whiskies.map(w=>`<option value="${esc(w['Whisky ID'])}">${esc([w['Distillery'],w['Expression'],w['Age Years']?w['Age Years']+'y':''].filter(Boolean).join(' · '))} (${esc(w['Whisky ID'])})</option>`).join('');
+ const whiskyFields=['Distillery','Expression','Whisky Type','Bottler','Brand / Producer','Country','Region','Age Years','ABV %','Bottle Size ml','Cask Type / Maturation','Peated','Whiskybase ID','Whiskybase URL'];
+ const bottleFields=['Collection Role','Acquisition Date','Acquisition Date Precision','Acquisition Type','Shop / Source','Purchase Price','Currency','Status','Replace When Empty','Notes'];
+ const input=(key,entity)=>{
+  if(key==='Notes')return `<label>${esc(key)}<textarea data-add-entity="${entity}" data-add-field="${esc(key)}"></textarea></label>`;
+  if(key==='Status')return `<label>Status<select data-add-entity="bottle" data-add-field="Status"><option>Sealed</option><option>Open</option></select></label>`;
+  const type=/Date$/.test(key)?'date':(['Age Years','ABV %','Bottle Size ml','Purchase Price'].includes(key)?'number':'text');
+  return `<label>${esc(key)}<input type="${type}" data-add-entity="${entity}" data-add-field="${esc(key)}" ${key==='Distillery'||key==='Expression'?'required':''}></label>`;
+ };
+ return `<div class="topbar"><button id="backAddBottle" class="backBtn">‹ Collection</button><div class="title">Add Bottle</div><span></span></div>
+ <section class="card setup"><div class="meta">Choose whether this bottle belongs to an existing whisky release or a new one.</div>
+ <div class="segmented editTabs"><button data-add-mode="existing" class="${addMode==='existing'?'active':''}">Existing Whisky</button><button data-add-mode="new" class="${addMode==='new'?'active':''}">New Whisky</button></div>
+ ${addMode==='existing'?`<label>Whisky release<select id="addWhiskyId"><option value="">Select whisky…</option>${option}</select></label>`:`<div class="editFields">${whiskyFields.map(k=>input(k,'whisky')).join('')}</div><div class="meta">A new Whisky ID will be created before the bottle. If bottle creation fails, the whisky may remain in the database.</div>`}
+ <h3>Bottle information</h3><div class="editFields">${bottleFields.map(k=>input(k,'bottle')).join('')}</div>
+ <button id="saveNewBottle" class="primary">Create Bottle</button><div class="meta">The database generates IDs. Missing optional details can be added later using Edit Bottle.</div></section>`;
+}
 function render(){
  const hasToken=!!sessionStorage.getItem('wc2ApiToken');
- let body=!hasToken?setup():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?generic('Tastings','Sessions and drams will use the unified Whisky / Session / Dram relationships.'):tab==='Live'?generic('Live Tasting','Fast dram entry, photo recognition and session workflow will be built here.'):tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):generic('Insights','Dynamic collection and tasting analytics will be built from the canonical database.');
+ let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?generic('Tastings','Sessions and drams will use the unified Whisky / Session / Dram relationships.'):tab==='Live'?generic('Live Tasting','Fast dram entry, photo recognition and session workflow will be built here.'):tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):generic('Insights','Dynamic collection and tasting analytics will be built from the canonical database.');
  root.innerHTML=`<main class="shell">${body}</main>${hasToken?bottom():''}`;
  bind();
 }
 function bind(){
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{tab=b.dataset.go;render()});
+ const addHome=document.getElementById('addBottleHome');if(addHome)addHome.onclick=()=>{tab='AddBottle';render()};
+ document.querySelectorAll('[data-add-mode]').forEach(el=>el.onclick=()=>{addMode=el.dataset.addMode;render()});
+ const backAdd=document.getElementById('backAddBottle');if(backAdd)backAdd.onclick=()=>{tab='Collection';render()};
+ const saveNew=document.getElementById('saveNewBottle');if(saveNew)saveNew.onclick=createNewBottle;
  const save=document.getElementById('saveToken');if(save)save.onclick=async()=>{const v=document.getElementById('tokenInput').value.trim();if(!v)return;WC2.setToken(v);await doRefresh()};
  const refresh=document.getElementById('refresh');if(refresh)refresh.onclick=doRefresh;
  const cr=document.getElementById('collectionRefresh');if(cr)cr.onclick=doRefresh;
@@ -186,6 +208,31 @@ function bind(){
  const saveTaste=document.getElementById('saveBottleTaste');if(saveTaste)saveTaste.onclick=saveBottleTasting;
  const settings=document.getElementById('settings');if(settings)settings.onclick=()=>{WC2.setToken('');render()};
  const trip=document.getElementById('tripCard');if(trip)trip.onclick=()=>{tab='Trip';render()};
+}
+async function createNewBottle(){
+ const btn=document.getElementById('saveNewBottle');
+ const collect=entity=>{const obj={};document.querySelectorAll('[data-add-entity="'+entity+'"]').forEach(el=>{const v=el.value.trim();if(v!=='')obj[el.dataset.addField]=el.type==='number'?Number(v):v});return obj};
+ const bottle=collect('bottle');
+ const whisky=collect('whisky');
+ let whiskyId=addMode==='existing'?document.getElementById('addWhiskyId')?.value:'';
+ if(addMode==='existing'&&!whiskyId){toast('Select a whisky first.');return}
+ if(addMode==='new'&&(!whisky['Distillery']||!whisky['Expression'])){toast('Distillery and Expression are required.');return}
+ if(bottle['Status']==='Open'){toast('Create the bottle as Sealed, then use Open Bottle to record lifecycle history.');return}
+ if(bottle['Purchase Price']!==undefined&&bottle['Purchase Price']<0){toast('Purchase price cannot be negative.');return}
+ if(addMode==='new'&&!confirm('Create a new whisky release and a bottle? This performs two separate database operations.'))return;
+ btn.disabled=true;btn.textContent='Creating…';
+ try{
+  if(addMode==='new'){
+   const created=await WC2.api('CREATE_WHISKY',{record:whisky});
+   whiskyId=created.record?.['Whisky ID'];
+   if(!whiskyId)throw new Error('Whisky created but no ID returned. Refresh before retrying.');
+  }
+  const createdBottle=await WC2.api('CREATE_BOTTLE',{record:{...bottle,'Whisky ID':whiskyId,'Status':'Sealed','Current Fill %':100}});
+  await WC2.refresh();
+  const id=createdBottle.record?.['Bottle ID'];
+  if(id){selectedBottleId=id;bottleView='detail';tab='Collection'}else{tab='Collection';selectedBottleId=null}
+  render();toast('Bottle created');
+ }catch(e){toast('Creation failed: '+e.message);btn.disabled=false;btn.textContent='Create Bottle'}
 }
 async function saveBottleChanges(){
  const b=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!b)return;

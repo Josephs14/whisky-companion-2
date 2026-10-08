@@ -30,3 +30,5 @@
 .tastingManage{display:flex;gap:9px;margin:13px 0;flex-wrap:wrap}.tastingManage button{border:1px solid var(--line);border-radius:11px;background:#fff;padding:10px 14px;font-weight:700;font-size:12px}.tastingManage .dangerAction{color:#a32d2d}.setup #cancelTastingEdit{margin-top:10px;width:100%}
 
 .wbLink{display:inline-flex;align-items:center;justify-content:center;margin:0 0 12px 12px;padding:8px 12px;border:1px solid #d8b48e;border-radius:10px;background:#fff8f0;color:#95500d;font-size:12px;font-weight:750;text-decoration:none}.wbBottleLink{margin:12px 0}.wbBottleLink .wbLink{margin:0}.tastingSessionHero>.wbLink{margin:12px 0}
+
+.historyTastingLink{display:flex;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;font:inherit;color:inherit;cursor:pointer;padding:12px 14px}.historyTastingLink .grow{min-width:0}.historyArrow{color:var(--accent);font-size:13px;margin-left:5px}

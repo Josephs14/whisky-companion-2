@@ -92,13 +92,24 @@ function collection(){
  <div class="sectionHead"><h2>${collectionFilter} Bottles</h2><span class="meta">${filtered.length} shown</span></div>
  <section class="bottleGrid">${filtered.length?filtered.map(b=>bottleCard(b,wi.get(String(b['Whisky ID']))||{})).join(''):'<div class="card placeholder">No bottles match this view.</div>'}</section>`;
 }
+function bottlePhoto(id){
+ const matches=(state().photos||[]).filter(p=>String(p['Entity Type']||'').toLowerCase()==='bottle'&&String(p['Entity ID'])===String(id)&&!['yes','true','1'].includes(String(p['Voided']||'').toLowerCase()));
+ const p=matches.find(x=>['yes','true','1'].includes(String(x['Primary']||'').toLowerCase()))||matches[0];
+ const raw=String(p?.['Photo Reference']||'').trim();
+ if(!raw.startsWith('https://'))return '';
+ try{return new URL(raw).href}catch(e){return ''}
+}
+function bottleImage(id,cls){
+ const src=bottlePhoto(id);
+ return src?`<img class="${cls}" src="${esc(src)}" alt="Bottle photo" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(document.createTextNode('🍾'))">`:'🍾';
+}
 function bottleCard(b,w){
  const status=String(b['Status']||'Unknown'),fill=num(b['Current Fill %']);
  const maker=w['Distillery']||w['Brand / Producer']||'Unknown whisky';
  const expression=w['Expression']||w['Series / Collection']||'';
  const bits=[w['Age Statement']||'',w['ABV %']!==''&&w['ABV %']!=null?(w['ABV %']+'% ABV'):'',w['Region']||''].filter(Boolean);
  return `<article class="card bottleCard" data-bottle-id="${esc(b['Bottle ID'])}">
-   <div class="bottleArt">🍾</div><div class="grow"><div class="bottleTop"><div><div class="name">${esc(maker)}</div><div class="expression">${esc(expression)}</div></div><span class="pill ${status.toLowerCase()}">${esc(status)}</span></div>
+   <div class="bottleArt">${bottleImage(b['Bottle ID'],'bottleThumb')}</div><div class="grow"><div class="bottleTop"><div><div class="name">${esc(maker)}</div><div class="expression">${esc(expression)}</div></div><span class="pill ${status.toLowerCase()}">${esc(status)}</span></div>
    <div class="meta">${esc(bits.join(' · '))}</div>
    ${status.toLowerCase()==='open'&&fill!==null?`<div class="fillLine"><div><span>Fill</span><b>${fill}%</b></div><div class="fillTrack"><i style="width:${Math.max(0,Math.min(100,fill))}%"></i></div></div>`:''}
    <div class="bottleFoot"><span>${esc(b['Bottle ID'])}</span><span>View ›</span></div></div></article>`;
@@ -118,7 +129,7 @@ function bottleDetail(b,w){
  }
  const fields=[['Status',b['Status']],['Current fill',b['Current Fill %']!==''&&b['Current Fill %']!=null?b['Current Fill %']+'%':'—'],['Age',w['Age Statement']||w['Age Years']],['ABV',w['ABV %']!==''&&w['ABV %']!=null?w['ABV %']+'%':'—'],['Region',w['Region']],['Cask / Maturation',w['Cask Type / Maturation']],['Acquired',b['Acquisition Date']],['Source',b['Shop / Source']],['Bottle ID',b['Bottle ID']],['Whisky ID',b['Whisky ID']]];
  return `<div class="topbar"><button class="backBtn" id="backCollection">‹ Collection</button><button class="iconBtn" id="detailRefresh">↻</button></div>
- <section class="detailHero card"><div class="detailBottle">🍾</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||w['Series / Collection']||'Bottle')}</h1><span class="pill ${String(b['Status']||'').toLowerCase()}">${esc(b['Status']||'Unknown')}</span></div></section>
+ <section class="detailHero card"><div class="detailBottle">${bottleImage(b['Bottle ID'],'bottleHeroImage')}</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||w['Series / Collection']||'Bottle')}</h1><span class="pill ${String(b['Status']||'').toLowerCase()}">${esc(b['Status']||'Unknown')}</span></div></section>
  <div class="detailActions four"><button id="editBottle">✎<span>Edit</span></button><button id="tasteBottle">🥃<span>Taste</span></button><button id="historyBottle">▥<span>History</span></button><button id="deleteBottle" class="dangerAction">⌫<span>Delete</span></button></div>
  <div class="sectionHead"><h2>Bottle Details</h2></div><section class="card detailList">${fields.filter(x=>x[1]!==''&&x[1]!=null).map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
  ${b['Notes']?`<div class="sectionHead"><h2>Notes</h2></div><section class="card notes">${esc(b['Notes'])}</section>`:''}`;

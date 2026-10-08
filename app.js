@@ -168,7 +168,7 @@ function bottleDetail(b,w){
  const fields=[['Status',b['Status']],['Current fill',b['Current Fill %']!==''&&b['Current Fill %']!=null?b['Current Fill %']+'%':'—'],['Age',w['Age Statement']||w['Age Years']],['ABV',w['ABV %']!==''&&w['ABV %']!=null?w['ABV %']+'%':'—'],['Region',w['Region']],['Cask / Maturation',w['Cask Type / Maturation']],['Acquired',b['Acquisition Date']],['Source',b['Shop / Source']],['Bottle ID',b['Bottle ID']],['Whisky ID',b['Whisky ID']]];
  return `<div class="topbar"><button class="backBtn" id="backCollection">‹ Collection</button><button class="iconBtn" id="detailRefresh">↻</button></div>
  <section class="detailHero card"><div class="detailBottle">${bottleImage(b['Bottle ID'],'bottleHeroImage')}</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||w['Series / Collection']||'Bottle')}</h1><span class="pill ${String(b['Status']||'').toLowerCase()}">${esc(b['Status']||'Unknown')}</span></div></section>
- <div class="detailActions four"><button id="editBottle">✎<span>Edit</span></button><button id="tasteBottle">🥃<span>Taste</span></button><button id="historyBottle">▥<span>History</span></button><button id="deleteBottle" class="dangerAction">⌫<span>Delete</span></button></div>
+ ${whiskybaseLink(w)?`<div class="wbBottleLink"><a class="wbLink" href="${esc(whiskybaseLink(w))}" target="_blank" rel="noopener noreferrer">Whiskybase ↗</a></div>`:``}<div class="detailActions four"><button id="editBottle">✎<span>Edit</span></button><button id="tasteBottle">🥃<span>Taste</span></button><button id="historyBottle">▥<span>History</span></button><button id="deleteBottle" class="dangerAction">⌫<span>Delete</span></button></div>
  <div class="sectionHead"><h2>Bottle Details</h2></div><section class="card detailList">${fields.filter(x=>x[1]!==''&&x[1]!=null).map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
  ${b['Notes']?`<div class="sectionHead"><h2>Notes</h2></div><section class="card notes">${esc(b['Notes'])}</section>`:''}`;
 }
@@ -210,6 +210,7 @@ async function saveTastingEdit(){
  try{await WC2.api(kind==='session'?'UPDATE_SESSION':'UPDATE_DRAM',{...(kind==='session'?{sessionId:record['Session ID']}:{tastingId:record['Tasting ID']}),changes});await WC2.refresh();tastingEdit=null;render();toast('Changes saved')}
  catch(e){toast('Save failed: '+e.message);btn.disabled=false}
 }
+function whiskybaseLink(w){const url=String(w['Whiskybase URL']||'').trim();if(/^https:\/\/(www\.)?whiskybase\.com\/whiskies\/whisky\/\d+/i.test(url))return url;const id=String(w['Whiskybase ID']||'').trim();return /^\d+$/.test(id)?'https://www.whiskybase.com/whiskies/whisky/'+id:''}
 function tastingsPage(){
  const s=state(),wi=new Map(s.whiskies.map(w=>[String(w['Whisky ID']),w]));
  const standalone=x=>/standalone/i.test([x['Session Name'],x['Session Type']].join(' '));
@@ -220,6 +221,7 @@ function tastingsPage(){
  const identity=d=>{const w=whisky(d);return [w['Expression'],w['Age Years']?w['Age Years']+' years':'',w['ABV %']?w['ABV %']+'%':''].filter(Boolean).join(' · ')||w['Brand / Producer']||'Unidentified bottle'};
  const distillery=d=>whisky(d)['Distillery']||whisky(d)['Brand / Producer']||'Unknown distillery';
  const dramName=d=>[distillery(d),identity(d)].join(' · ');
+ const wb=d=>{const url=whiskybaseLink(whisky(d));return url?`<a class="wbLink" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Whiskybase ↗</a>`:''};
  const fmt=v=>{const d=dateValue(v);return d?new Date(d).toLocaleDateString():'Date unknown'};
  const unique=new Set(s.drams.map(d=>String(d['Whisky ID']||'').trim()).filter(Boolean));
  const scored=s.drams.map(d=>num(d['Score'])).filter(v=>v!==null);
@@ -234,7 +236,7 @@ function tastingsPage(){
   <div class="meta">${esc(fmt(d['Tasting Date']||sess['Date']))} · ${esc(sess['Session Name']||'Standalone tasting')}</div>
   <div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span><span>Dram # <b>${esc(d['Dram #']||'—')}</b></span></div>
   ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision','Memorability'].filter(k=>d[k]).map(k=>`<div class="tastingNote"><span>${esc(k)}</span><p>${esc(String(d[k]).startsWith('[WCMETA]')?'Legacy metadata (not a tasting note)':d[k])}</p></div>`).join('')}
-  <div class="meta">Tasting ID: ${esc(d['Tasting ID'])}</div></section>`;
+  ${wb(d)}<div class="meta">Tasting ID: ${esc(d['Tasting ID'])}</div></section>`;
  }
  if(selectedSessionId){
   const sess=allSessions.get(String(selectedSessionId));if(!sess){selectedSessionId=null;return tastingsPage()}
@@ -245,7 +247,7 @@ function tastingsPage(){
   <div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Session Type']||'Tasting')} · ${esc(sess['Status']||'')}</div>
   <p>${esc(sess['Location']||'')}</p><div class="tastingManage"><button id="editSession">Edit Session</button><button id="deleteSession" class="dangerAction">Delete Session</button></div><p class="meta">With: ${esc(sess['Companions']||'—')} · Blind: ${esc(sess['Blind?']||'—')}</p></section>
   <div class="sectionHead"><h2>Drams (${drams.length})</h2></div>
-  ${drams.map((d,i)=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>`).join('')||'<section class="card">No drams recorded.</section>'}`;
+  ${drams.map((d,i)=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>${wb(d)}` ).join('')||'<section class="card">No drams recorded.</section>'}`;
  }
  const q=tastingSearch.trim().toLowerCase();
  if(tastingView==='drams'){
@@ -289,9 +291,9 @@ function tastingsPage(){
   <label>Session<select data-dram-filter="session"><option value="">All</option>${[...allSessions.values()].map(sess=>`<option value="${esc(sess['Session ID'])}" ${f.session===String(sess['Session ID'])?'selected':''}>${esc(sess['Session Name']||sess['Location']||sess['Session ID'])}</option>`).join('')}</select></label>
   </div><button type="button" class="clearFilters" id="clearDramFilters">Clear all filters</button></section>`:''}
   <div class="sectionHead"><h2>All Drams (${rows.length})</h2></div>
-  ${rows.map(d=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="meta">${esc(fmt(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']))} · ${esc(allSessions.get(String(d['Session ID']))?.['Session Name']||'Standalone')}</div><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>`).join('')||'<section class="card">No matching drams.</section>'}`;
+  ${rows.map(d=>`<button type="button" class="card tastingDram tastingDramCompact" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="meta">${esc(fmt(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']))} · ${esc(allSessions.get(String(d['Session ID']))?.['Session Name']||'Standalone')}</div><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>${wb(d)}` ).join('')||'<section class="card">No matching drams.</section>'}`;
  }
- const sf=sessionFilters,sessionYear=x=>{const m=String(x['Date']||'').match(/(?:19|20)\\d{2}/);return m?m[0]:''};
+ const sf=sessionFilters,sessionYear=x=>{const m=String(dateInput(x['Date'])||x['Date']||'').match(/(?:19|20)\d{2}/);return m?m[0]:''};
  const sessionTypes=[...new Set(sessions.map(x=>String(x['Session Type']||'Other')))].sort();
  const years=[...new Set(sessions.map(sessionYear).filter(Boolean))].sort().reverse();
  const locations=[...new Set(sessions.map(x=>String(x['Location']||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));

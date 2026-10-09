@@ -218,11 +218,20 @@ function bindDramIdentityPicker(){
  for(const [heading,rows,kind] of groups){if(!rows.length)continue;const h=document.createElement('div');h.className='identityGroup';h.textContent=heading;results.appendChild(h);
  for(const item of rows){const btn=document.createElement('button');btn.type='button';btn.className='identityResult';btn.textContent=item.name;btn.onclick=()=>{bInput.value=kind==='bottle'?item.id:'';wInput.value=kind==='bottle'?item.whiskyId:item.id;selected.textContent=(kind==='bottle'?'Collection bottle: ':'Whisky: ')+item.name;results.innerHTML='';search.value=''};results.appendChild(btn)}}};
 }
+const dramDescriptorOptions={
+ Nose:['Fruity','Floral','Vanilla','Honey','Oak','Smoke','Spicy','Maritime','Citrus','Dried Fruit'],
+ Palate:['Sweet','Citrus','Dried Fruit','Chocolate','Peat','Pepper','Nutty','Creamy','Oaky','Malty'],
+ Finish:['Sweet','Dry','Spicy','Smoky','Oaky','Fruity','Bitter','Warming','Lingering']
+};
+let dramDescriptorDraft={Nose:[],Palate:[],Finish:[]};
+function descriptorPicker(kind){
+ return `<div class="descriptorPicker"><div class="meta">Structured ${esc(kind)} descriptors · preview (not yet saved)</div><div class="descriptorChips">${dramDescriptorOptions[kind].map(v=>`<button type="button" class="descriptorChip ${dramDescriptorDraft[kind].includes(v)?'active':''}" data-descriptor-kind="${esc(kind)}" data-descriptor-value="${esc(v)}" aria-pressed="${dramDescriptorDraft[kind].includes(v)}">${esc(v)}</button>`).join('')}</div></div>`;
+}
 function tastingEditForm(kind,record){
  if(kind==='session'){const fields=['Session Name','Date','Session Type','Location','Companions','Blind?','Notes'];return `<section class="card setup"><h3>Edit Session</h3><div class="editFields">${fields.map(k=>{const v=record[k]??'',type=k==='Date'?'date':'text';return `<label>${esc(k)}${k==='Notes'?`<textarea data-tasting-edit="${esc(k)}">${esc(v)}</textarea>`:`<input type="${type}" data-tasting-edit="${esc(k)}" value="${esc(type==='date'?dateInput(v):v)}">`}</label>`}).join('')}</div><button class="primary" id="saveTastingEdit">Save Changes</button><button type="button" class="filterBtn" id="cancelTastingEdit">Cancel</button></section>`;}
  const choices={'Finish Length':['','Short','Medium','Long'],'Buy Decision':['','Must Buy','Would Buy','At the Right Price','Taste Again Before Deciding','Would Not Buy'],'Memorability':['','Exceptional','Memorable','Average','Forgettable']};
  const field=k=>{const v=String(record[k]??'');if(choices[k])return `<label>${esc(k)}<select data-tasting-edit="${esc(k)}">${[...new Set([...choices[k],...(v&&!choices[k].includes(v)?[v]:[])])].map(x=>`<option value="${esc(x)}" ${x===v?'selected':''}>${esc(x||'Not assessed')}</option>`).join('')}</select></label>`;if(['Nose','Palate','Finish Character','Free Notes'].includes(k))return `<label>${esc(k==='Finish Character'?'Finish notes':k)}<textarea data-tasting-edit="${esc(k)}" rows="3">${esc(v)}</textarea></label>`;return `<label>${esc(k)}<input type="number" ${k==='Score'?'min="0" max="100" step="0.5"':'min="1" step="1"'} data-tasting-edit="${esc(k)}" value="${esc(v)}"></label>`;};
- return `<section class="card setup dramEdit"><h3>Edit Dram</h3><section class="dramEditSection dramIdentityAlways"><h3>1. Identification — choose bottle or whisky</h3>${dramIdentityPicker(record)}</section><details class="dramEditSection" open><summary>2. Evaluation</summary><div class="editFields">${['Score','Nose','Palate','Finish Length','Finish Character'].map(field).join('')}</div><p class="meta">Structured descriptors will be added when separate database fields are ready. Existing notes are preserved.</p></details><details class="dramEditSection"><summary>3. Personal Assessment</summary><div class="editFields">${['Buy Decision','Memorability','Session Rank'].map(field).join('')}</div></details><details class="dramEditSection"><summary>4. Additional Notes</summary><div class="editFields">${field('Free Notes')}</div></details><button class="primary" id="saveTastingEdit">Save Changes</button><button type="button" class="filterBtn" id="cancelTastingEdit">Cancel</button></section>`;
+ return `<section class="card setup dramEdit"><h3>Edit Dram</h3><section class="dramEditSection dramIdentityAlways"><h3>1. Identification — choose bottle or whisky</h3>${dramIdentityPicker(record)}</section><details class="dramEditSection" open><summary>2. Evaluation</summary><div class="editFields">${['Score','Nose','Palate','Finish Length','Finish Character'].map(k=>field(k)+(k==='Nose'?descriptorPicker('Nose'):k==='Palate'?descriptorPicker('Palate'):k==='Finish Character'?descriptorPicker('Finish'):'')).join('')}</div><p class="meta">Descriptor selection is a UI preview only. Descriptor saving will be enabled after separate database fields are added. Existing written notes remain editable.</p></details><details class="dramEditSection"><summary>3. Personal Assessment</summary><div class="editFields">${['Buy Decision','Memorability','Session Rank'].map(field).join('')}</div></details><details class="dramEditSection"><summary>4. Additional Notes</summary><div class="editFields">${field('Free Notes')}</div></details><button class="primary" id="saveTastingEdit">Save Changes</button><button type="button" class="filterBtn" id="cancelTastingEdit">Cancel</button></section>`;
 }
 async function saveTastingEdit(){
  const kind=tastingEdit;if(!kind)return;
@@ -338,6 +347,7 @@ function render(){
  bind();
 }
 function bind(){
+ document.querySelectorAll('[data-descriptor-kind]').forEach(el=>el.onclick=()=>{const kind=el.dataset.descriptorKind,v=el.dataset.descriptorValue;const arr=dramDescriptorDraft[kind];dramDescriptorDraft[kind]=arr.includes(v)?arr.filter(x=>x!==v):[...arr,v];el.classList.toggle('active',dramDescriptorDraft[kind].includes(v));el.setAttribute('aria-pressed',String(dramDescriptorDraft[kind].includes(v)))});
  bindDramIdentityPicker();
  document.querySelectorAll('[data-history-target]').forEach(el=>el.onclick=()=>{const id=el.dataset.historyId;if(el.dataset.historyTarget==='session'){selectedSessionId=id;selectedDramId=null;tastingView='sessions'}else{selectedDramId=id;selectedSessionId=null;tastingView='drams'}tastingEdit=null;tab='Tastings';render();window.scrollTo(0,0)});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==='Tastings'){selectedSessionId=null;selectedDramId=null}render()});
@@ -364,7 +374,7 @@ function bind(){
  document.querySelectorAll('[data-session-filter]').forEach(el=>el.onchange=()=>{sessionFilters[el.dataset.sessionFilter]=el.value;render()});
  const clearSession=document.getElementById('clearSessionFilters');if(clearSession)clearSession.onclick=()=>{sessionFilters={type:'',year:''};render()};
  const editSession=document.getElementById('editSession');if(editSession)editSession.onclick=()=>{tastingEdit='session';render()};
- const editDram=document.getElementById('editDram');if(editDram)editDram.onclick=()=>{tastingEdit='dram';render()};
+ const editDram=document.getElementById('editDram');if(editDram)editDram.onclick=()=>{dramDescriptorDraft={Nose:[],Palate:[],Finish:[]};tastingEdit='dram';render()};
  const cancelEdit=document.getElementById('cancelTastingEdit');if(cancelEdit)cancelEdit.onclick=()=>{tastingEdit=null;render()};
  const saveTastingBtn=document.getElementById('saveTastingEdit');if(saveTastingBtn)saveTastingBtn.onclick=saveTastingEdit;
  for(const id of ['deleteSession','deleteDram']){const el=document.getElementById(id);if(el)el.onclick=()=>toast('Deletion is not enabled until a safe backend delete action is available.')}

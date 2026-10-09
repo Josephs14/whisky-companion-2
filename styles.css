@@ -40,3 +40,6 @@
 .dramEditSection{border:1px solid var(--line);border-radius:13px;padding:12px;margin:12px 0}.dramEditSection>summary{font-weight:800;cursor:pointer;padding:4px 0}.dramEditSection .identityPicker{margin:12px 0 0}.dramEditSection .editFields{margin-top:14px}.dramEditSection .meta{font-size:12px;line-height:1.5}
 
 .descriptorPicker{margin:0 0 15px}.descriptorChips{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.descriptorChip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:650;color:inherit}.descriptorChip.active{background:#99501d;color:#fff;border-color:#99501d}
+
+/* Saved structured tasting descriptors */
+.dramDescriptorLine{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0;font-size:12px;text-align:left}.dramDescriptorLine>span:first-child{font-weight:700;min-width:43px;color:var(--muted,#6b7280)}.dramDescriptorTag{display:inline-block;border:1px solid #e2cbb7;border-radius:999px;background:#fff6ec;color:#78451e;padding:3px 8px;font-size:11px;font-weight:650}

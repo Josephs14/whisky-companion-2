@@ -225,6 +225,7 @@ const dramDescriptorOptions={
 };
 let dramDescriptorDraft={Nose:[],Palate:[],Finish:[]};
 function descriptorValues(record,kind){const raw=record[kind+' Descriptors'];if(Array.isArray(raw))return raw.filter(Boolean);return String(raw||'').split(/[,;|]/).map(x=>x.trim()).filter(Boolean)}
+function dramDescriptorSummary(d){return ['Nose','Palate','Finish'].map(k=>{const vals=descriptorValues(d,k);return vals.length?`<div class="dramDescriptorLine"><span>${esc(k)}</span> ${vals.map(v=>`<span class="dramDescriptorTag">${esc(v)}</span>`).join('')}</div>`:''}).filter(Boolean).join('')}
 function descriptorPicker(kind){
  return `<div class="descriptorPicker"><div class="meta">Structured ${esc(kind)} descriptors</div><div class="descriptorChips">${dramDescriptorOptions[kind].map(v=>`<button type="button" class="descriptorChip ${dramDescriptorDraft[kind].includes(v)?'active':''}" data-descriptor-kind="${esc(kind)}" data-descriptor-value="${esc(v)}" aria-pressed="${dramDescriptorDraft[kind].includes(v)}">${esc(v)}</button>`).join('')}</div></div>`;
 }
@@ -272,6 +273,7 @@ function tastingsPage(){
   <div class="eyebrow">${esc(distillery(d))}</div><h2>${esc(identity(d))}</h2><div class="tastingManage"><button id="editDram">Edit Dram</button><button id="deleteDram" class="dangerAction">Delete Dram</button></div>
   <div class="meta">${esc(fmt(d['Tasting Date']||sess['Date']))} · ${esc(sess['Session Name']||'Standalone tasting')}</div>
   <div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span><span>Dram # <b>${esc(d['Dram #']||'—')}</b></span></div>
+  ${dramDescriptorSummary(d)}
   ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision','Memorability'].filter(k=>d[k]).map(k=>`<div class="tastingNote"><span>${esc(k)}</span><p>${esc(String(d[k]).startsWith('[WCMETA]')?'Legacy metadata (not a tasting note)':d[k])}</p></div>`).join('')}
   ${wb(d)}<div class="meta">Tasting ID: ${esc(d['Tasting ID'])}</div></section>`;
  }
@@ -284,7 +286,7 @@ function tastingsPage(){
   <div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Session Type']||'Tasting')} · ${esc(sess['Status']||'')}</div>
   <p>${esc(sess['Location']||'')}</p><div class="tastingManage"><button id="editSession">Edit Session</button><button id="deleteSession" class="dangerAction">Delete Session</button></div><p class="meta">With: ${esc(sess['Companions']||'—')} · Blind: ${esc(sess['Blind?']||'—')}</p></section>
   <div class="sectionHead"><h2>Drams (${drams.length})</h2></div>
-  ${drams.map((d,i)=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>${wb(d)}</div>`).join('')||'<section class="card">No drams recorded.</section>'}`;
+  ${drams.map((d,i)=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div>${dramDescriptorSummary(d)}</button>${wb(d)}</div>`).join('')||'<section class="card">No drams recorded.</section>'}`;
  }
  const q=tastingSearch.trim().toLowerCase();
  if(tastingView==='drams'){
@@ -328,7 +330,7 @@ function tastingsPage(){
   <label>Session<select data-dram-filter="session"><option value="">All</option>${[...allSessions.values()].map(sess=>`<option value="${esc(sess['Session ID'])}" ${f.session===String(sess['Session ID'])?'selected':''}>${esc(sess['Session Name']||sess['Location']||sess['Session ID'])}</option>`).join('')}</select></label>
   </div><button type="button" class="clearFilters" id="clearDramFilters">Clear all filters</button></section>`:''}
   <div class="sectionHead"><h2>All Drams (${rows.length})</h2></div>
-  ${rows.map(d=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="meta">${esc(fmt(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']))} · ${esc(allSessions.get(String(d['Session ID']))?.['Session Name']||'Standalone')}</div><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Rank <b>${esc(d['Session Rank']||'—')}</b></span></div></button>${wb(d)}</div>`).join('')||'<section class="card">No matching drams.</section>'}`;
+  ${rows.map(d=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="meta">${esc(fmt(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']))} · ${esc(allSessions.get(String(d['Session ID']))?.['Session Name']||'Standalone')}</div><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Rank <b>${esc(d['Session Rank']||'—')}</b></span></div>${dramDescriptorSummary(d)}</button>${wb(d)}</div>`).join('')||'<section class="card">No matching drams.</section>'}`;
  }
  const sf=sessionFilters,sessionYear=x=>{const m=String(dateInput(x['Date'])||x['Date']||'').match(/(?:19|20)\d{2}/);return m?m[0]:''};
  const sessionTypes=[...new Set(sessions.map(x=>String(x['Session Type']||'Other')))].sort();

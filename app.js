@@ -374,7 +374,7 @@ function tastingsPage(){
  ${filtered.map(sess=>{const ds=dramsBySession.get(String(sess['Session ID']))||[];return `<button type="button" class="card tastingSessionRow" data-session-id="${esc(sess['Session ID'])}"><strong>${esc(sess['Session Name']||sess['Location']||'Tasting Session')}</strong><div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Location']||'')} · ${ds.length} drams</div><div class="meta">${esc(sess['Session Type']||'')} ${sess['Companions']?'· '+esc(sess['Companions']):''}</div></button>`}).join('')||'<section class="card">No matching sessions.</section>'}`;
 }
 function render(){
- const hasToken=!!sessionStorage.getItem('wc2ApiToken');
+ const hasToken=!!(localStorage.getItem('wc2ApiToken') || sessionStorage.getItem('wc2ApiToken') || window.WC2_API_TOKEN);
  let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?generic('Live Tasting','Fast dram entry, photo recognition and session workflow will be built here.'):tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):generic('Insights','Dynamic collection and tasting analytics will be built from the canonical database.');
  root.innerHTML=`<main class="shell">${body}</main>${hasToken?bottom():''}`;
  bind();

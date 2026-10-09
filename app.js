@@ -288,8 +288,8 @@ function tastingsPage(){
  const fmt=v=>{const d=dateValue(v);return d?new Date(d).toLocaleDateString():'Date unknown'};
  const unique=new Set(s.drams.map(d=>String(d['Whisky ID']||'').trim()).filter(Boolean));
  const scored=s.drams.map(d=>num(d['Score'])).filter(v=>v!==null);
- const heading=`<div class="topbar"><div><div class="title">Tastings</div><div class="sync">${sessions.length} sessions · ${unique.size} unique whiskies · ${s.drams.length} tasting records</div></div><div class="row"><button class="filterBtn" id="addDramTop">+ Add Dram</button><button class="iconBtn" id="tastingsRefresh">↻</button></div></div>`;
- const tabs=`<div class="segmented tastingTabs"><button data-tasting-view="sessions" class="${tastingView==='sessions'?'active':''}">Sessions</button><button data-tasting-view="drams" class="${tastingView==='drams'?'active':''}">All Drams</button></div>`;
+ const heading=`<div class="topbar"><div><div class="title">Tastings</div><div class="sync">${sessions.length} sessions · ${unique.size} unique whiskies · ${s.drams.length} tasting records</div></div><button class="iconBtn" id="tastingsRefresh">↻</button></div>`;
+ const tabs=`<div class="tastingCreateBar"><button type="button" class="primary" id="addDramTop">＋ Add Dram</button></div><div class="segmented tastingTabs"><button data-tasting-view="sessions" class="${tastingView==='sessions'?'active':''}">Sessions</button><button data-tasting-view="drams" class="${tastingView==='drams'?'active':''}">All Drams</button></div>`;
  if(addingDram){const sess=selectedSessionId?allSessions.get(String(selectedSessionId)):null;const d={'Tasting Date':sess?dateInput(sess['Date']):new Date().toLocaleDateString('en-CA')};return `<div class="topbar"><button class="backBtn" id="cancelNewDram">‹ Back</button><div class="title">Add Dram</div></div>${tastingEditForm('dram',d)}`}
  if(selectedDramId){
   const d=s.drams.find(x=>String(x['Tasting ID'])===String(selectedDramId));if(!d){selectedDramId=null;return tastingsPage()}

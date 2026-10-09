@@ -16,13 +16,22 @@
   const rows = value => Array.isArray(value) ? value : [];
   const endpoint = () => String(window.WC2_API_ENDPOINT || '').trim();
   const token = () => String(
-    window.WC2_API_TOKEN || sessionStorage.getItem('wc2ApiToken') || ''
+    window.WC2_API_TOKEN || localStorage.getItem('wc2ApiToken') || sessionStorage.getItem('wc2ApiToken') || ''
   ).trim();
 
   function setToken(value) {
-    if (value) sessionStorage.setItem('wc2ApiToken', String(value).trim());
-    else sessionStorage.removeItem('wc2ApiToken');
+    if (value) localStorage.setItem('wc2ApiToken', String(value).trim());
+    else localStorage.removeItem('wc2ApiToken');
+    sessionStorage.removeItem('wc2ApiToken');
   }
+
+  // Migrate an existing session token once so returning users stay signed in.
+  try {
+    if (!localStorage.getItem('wc2ApiToken') && sessionStorage.getItem('wc2ApiToken')) {
+      localStorage.setItem('wc2ApiToken', sessionStorage.getItem('wc2ApiToken'));
+      sessionStorage.removeItem('wc2ApiToken');
+    }
+  } catch (_) { /* Browser storage may be restricted. */ }
 
   function normalize(data = {}) {
     return {

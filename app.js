@@ -204,7 +204,7 @@ function dramIdentityPicker(record){
  const label=w=>[w['Distillery']||w['Brand / Producer'],w['Expression'],w['Bottler'],w['Age Years']?w['Age Years']+'y':'',w['ABV %']?w['ABV %']+'%':''].filter(Boolean).join(' · ');
  const bottles=s.bottles.filter(b=>whiskies.has(String(b['Whisky ID']))).map(b=>({id:String(b['Bottle ID']),whiskyId:String(b['Whisky ID']),name:label(whiskies.get(String(b['Whisky ID'])))+' · '+(b['Status']||'Unknown')+' · '+b['Bottle ID']}));
  const items=s.whiskies.map(w=>({id:String(w['Whisky ID']),name:label(w)+' · '+w['Whisky ID']}));
- return `<section class="identityPicker"><h3>Collection first · All whiskies available</h3><p class="meta">Type a whisky name below. Choose a specific bottle if the tasting came from your collection, or choose Whisky only if you tasted it elsewhere. The same whisky can appear in both groups intentionally.</p><input id="dramIdentitySearch" type="search" placeholder="Type to find a bottle or whisky…" autocomplete="off"><div id="dramIdentityResults" class="identityResults"></div><div class="identitySelected" id="dramIdentitySelected">${esc(bottleId?'Collection bottle: '+bottleId+' · '+(label(whiskies.get(whiskyId)||{})||''):whiskyId?'Whisky: '+(label(whiskies.get(whiskyId)||{})||whiskyId)+' · '+whiskyId:'No identity linked')}</div><input type="hidden" id="dramSelectedBottle" value="${esc(bottleId)}"><input type="hidden" id="dramSelectedWhisky" value="${esc(whiskyId)}"></section>`;
+ return `<section class="identityPicker"><h3>Collection first · All whiskies available</h3><p class="meta">Type a whisky name below. Choose a specific bottle if the tasting came from your collection, or choose Whisky only if you tasted it elsewhere. The same whisky can appear in both groups intentionally.</p><input id="dramIdentitySearch" type="search" placeholder="Type to find a bottle or whisky…" autocomplete="off"><div id="dramIdentityResults" class="identityResults"></div><div class="identitySelected" id="dramIdentitySelected">${esc(bottleId?'Collection bottle: '+bottleId+' · '+(label(whiskies.get(whiskyId)||{})||''):whiskyId?'Whisky: '+(label(whiskies.get(whiskyId)||{})||whiskyId)+' · '+whiskyId:'No identity linked')}</div>${addingDram?"<button type=\"button\" class=\"filterBtn\" id=\"toggleNewDramWhisky\">＋ Whisky not listed? Create new whisky</button><div id=\"newDramWhiskyFields\" hidden><p class=\"meta\">Creates a whisky identity only, not a bottle. Search first to avoid duplicates.</p><div class=\"editFields\"><label>Distillery<input data-new-dram-whisky=\"Distillery\" type=\"text\"></label><label>Expression<input data-new-dram-whisky=\"Expression\" type=\"text\"></label><label>Bottler<input data-new-dram-whisky=\"Bottler\" type=\"text\"></label><label>Country<input data-new-dram-whisky=\"Country\" type=\"text\"></label><label>Region<input data-new-dram-whisky=\"Region\" type=\"text\"></label><label>Age Years<input data-new-dram-whisky=\"Age Years\" type=\"number\"></label><label>ABV %<input data-new-dram-whisky=\"ABV %\" type=\"number\"></label><label>Cask Type / Maturation<input data-new-dram-whisky=\"Cask Type / Maturation\" type=\"text\"></label><label>Whiskybase URL<input data-new-dram-whisky=\"Whiskybase URL\" type=\"text\"></label></div></div>":""}<input type="hidden" id="dramSelectedBottle" value="${esc(bottleId)}"><input type="hidden" id="dramSelectedWhisky" value="${esc(whiskyId)}"></section>`;
 }
 function bindDramIdentityPicker(){
  const search=document.getElementById('dramIdentitySearch');if(!search)return;
@@ -237,11 +237,12 @@ function tastingEditForm(kind,record){
 }
 async function createNewDram(){
  const wi=document.getElementById('dramSelectedWhisky'),bi=document.getElementById('dramSelectedBottle'),date=document.getElementById('newDramDate'),n=document.getElementById('newDramNumber'),sample=document.getElementById('newDramSample'),btn=document.getElementById('saveTastingEdit');
- if(!wi?.value){toast('Choose a collection bottle or whisky first');return}
+ const newFields=document.getElementById('newDramWhiskyFields'),makingWhisky=!!newFields&&!newFields.hidden;
+ if(!wi?.value&&!makingWhisky){toast('Choose a collection bottle or whisky first');return}
  const session=selectedSessionId?state().sessions.find(s=>String(s['Session ID'])===String(selectedSessionId)):null;
  const tastingDate=session?dateInput(session['Date']):date?.value;
  if(!tastingDate){toast('Tasting date is required');return}
- const record={'Whisky ID':wi.value,'Tasting Context':session?'Session':'Standalone','Tasting Date':tastingDate};
+ const record={'Tasting Context':session?'Session':'Standalone','Tasting Date':tastingDate};if(!makingWhisky)record['Whisky ID']=wi.value;
  if(bi?.value)record['Bottle ID']=bi.value;
  if(session)record['Session ID']=selectedSessionId;
  if(n?.value)record['Dram #']=Number(n.value);
@@ -252,6 +253,7 @@ async function createNewDram(){
  if(!session&&record['Dram #']===undefined)delete record['Dram #'];
  if(btn)btn.disabled=true;
  try{
+  if(makingWhisky){const whisky={};document.querySelectorAll('[data-new-dram-whisky]').forEach(el=>{const v=el.value.trim();if(v)whisky[el.dataset.newDramWhisky]=el.type==='number'?Number(v):v});if(!whisky.Distillery||!whisky.Expression){toast('Distillery and Expression are required');return}if(!confirm('Create this whisky identity and then save the dram? No physical bottle will be created.'))return;const created=await WC2.api('CREATE_WHISKY',{record:whisky});const newId=created.record?.['Whisky ID'];if(!newId)throw new Error('Whisky created but ID not returned. Refresh before retrying.');record['Whisky ID']=newId;}
   const result=await WC2.api('CREATE_DRAM',{record});
   const id=result.record?.['Tasting ID'];
   await WC2.refresh();
@@ -382,6 +384,7 @@ function bind(){
  const cancelNew=document.getElementById('cancelNewDram');if(cancelNew)cancelNew.onclick=()=>{addingDram=false;render()};
  document.querySelectorAll('[data-descriptor-kind]').forEach(el=>el.onclick=()=>{const kind=el.dataset.descriptorKind,v=el.dataset.descriptorValue;const arr=dramDescriptorDraft[kind];dramDescriptorDraft[kind]=arr.includes(v)?arr.filter(x=>x!==v):[...arr,v];el.classList.toggle('active',dramDescriptorDraft[kind].includes(v));el.setAttribute('aria-pressed',String(dramDescriptorDraft[kind].includes(v)))});
  bindDramIdentityPicker();
+ const toggleNewWhisky=document.getElementById('toggleNewDramWhisky');if(toggleNewWhisky)toggleNewWhisky.onclick=()=>{const f=document.getElementById('newDramWhiskyFields');f.hidden=!f.hidden;toggleNewWhisky.textContent=f.hidden?'＋ Whisky not listed? Create new whisky':'− Cancel new whisky';document.getElementById('dramIdentitySearch').disabled=!f.hidden;};
  document.querySelectorAll('[data-history-target]').forEach(el=>el.onclick=()=>{const id=el.dataset.historyId;if(el.dataset.historyTarget==='session'){selectedSessionId=id;selectedDramId=null;tastingView='sessions'}else{selectedDramId=id;selectedSessionId=null;tastingView='drams'}tastingEdit=null;tab='Tastings';render();window.scrollTo(0,0)});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==='Tastings'){selectedSessionId=null;selectedDramId=null}render()});
  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{tab=b.dataset.go;render()});

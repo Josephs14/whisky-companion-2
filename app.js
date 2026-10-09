@@ -384,7 +384,30 @@ function bind(){
  const cancelNew=document.getElementById('cancelNewDram');if(cancelNew)cancelNew.onclick=()=>{addingDram=false;render()};
  document.querySelectorAll('[data-descriptor-kind]').forEach(el=>el.onclick=()=>{const kind=el.dataset.descriptorKind,v=el.dataset.descriptorValue;const arr=dramDescriptorDraft[kind];dramDescriptorDraft[kind]=arr.includes(v)?arr.filter(x=>x!==v):[...arr,v];el.classList.toggle('active',dramDescriptorDraft[kind].includes(v));el.setAttribute('aria-pressed',String(dramDescriptorDraft[kind].includes(v)))});
  bindDramIdentityPicker();
- const wb=document.querySelector('[data-new-dram-whisky="Whiskybase URL"]');if(wb)wb.addEventListener('input',()=>{const raw=wb.value.trim();let id='';try{const u=new URL(raw),m=u.pathname.match(/^\/whiskies\/whisky\/(\d+)(?:\/|$)/);if(/(^|\.)whiskybase\.com$/i.test(u.hostname)&&m)id=m[1]}catch(e){}const status=document.getElementById('newWhiskybaseCheck');if(!status)return;if(!raw){status.textContent='';return}if(!id){status.textContent='Enter a valid Whiskybase whisky URL.';return}const matches=state().whiskies.filter(w=>String(w['Whiskybase ID']||'')===id||String(w['Whiskybase URL']||'').includes('/whisky/'+id+'/'));status.textContent=matches.length?'Already exists: '+matches.map(w=>[w['Distillery'],w['Expression'],w['Whisky ID']].filter(Boolean).join(' · ')).join('; '):'Whiskybase ID '+id+' recognized. Other fields require manual entry.';});
+ const wb=document.querySelector('[data-new-dram-whisky="Whiskybase URL"]');
+ if(wb)wb.addEventListener('input',()=>{
+  const raw=wb.value.trim(),status=document.getElementById('newWhiskybaseCheck');if(!status)return;
+  status.replaceChildren();if(!raw)return;
+  let id='';try{const u=new URL(raw),m=u.pathname.match(/^\/whiskies\/whisky\/(\d+)(?:\/|$)/);if(/(^|\.)whiskybase\.com$/i.test(u.hostname)&&m)id=m[1]}catch(e){}
+  if(!id){status.textContent='Enter a valid Whiskybase whisky URL.';return}
+  const matches=state().whiskies.filter(w=>String(w['Whiskybase ID']||'')===id||String(w['Whiskybase URL']||'').includes('/whisky/'+id+'/'));
+  if(!matches.length){status.textContent='Whiskybase ID '+id+' recognized. Other fields require manual entry.';return}
+  for(const w of matches){
+   const label=[w['Distillery'],w['Expression'],w['Whisky ID']].filter(Boolean).join(' · ');
+   const info=document.createElement('div');info.textContent='Already exists: '+label;status.appendChild(info);
+   const btn=document.createElement('button');btn.type='button';btn.className='filterBtn';btn.textContent='Use Existing Whisky — '+label;
+   btn.onclick=()=>{
+    document.getElementById('dramSelectedWhisky').value=String(w['Whisky ID']);
+    document.getElementById('dramSelectedBottle').value='';
+    document.getElementById('dramIdentitySelected').textContent='Whisky: '+label+' · no physical bottle linked';
+    const fields=document.getElementById('newDramWhiskyFields');fields.hidden=true;
+    const toggle=document.getElementById('toggleNewDramWhisky');toggle.textContent='＋ Whisky not listed? Create new whisky';
+    const search=document.getElementById('dramIdentitySearch');search.disabled=false;search.value='';
+    document.getElementById('dramIdentityResults').replaceChildren();
+    toast('Existing whisky selected. No new whisky will be created.');
+   };status.appendChild(btn);
+  }
+ });
  const toggleNewWhisky=document.getElementById('toggleNewDramWhisky');if(toggleNewWhisky)toggleNewWhisky.onclick=()=>{const f=document.getElementById('newDramWhiskyFields');f.hidden=!f.hidden;toggleNewWhisky.textContent=f.hidden?'＋ Whisky not listed? Create new whisky':'− Cancel new whisky';document.getElementById('dramIdentitySearch').disabled=!f.hidden;};
  document.querySelectorAll('[data-history-target]').forEach(el=>el.onclick=()=>{const id=el.dataset.historyId;if(el.dataset.historyTarget==='session'){selectedSessionId=id;selectedDramId=null;tastingView='sessions'}else{selectedDramId=id;selectedSessionId=null;tastingView='drams'}tastingEdit=null;tab='Tastings';render();window.scrollTo(0,0)});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==='Tastings'){selectedSessionId=null;selectedDramId=null}render()});

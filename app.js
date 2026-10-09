@@ -534,4 +534,10 @@ async function doRefresh(){
 }
 window.addEventListener('wc2:state-refreshed',()=>{});
 render();
+// Load the canonical Google Sheets state automatically when a saved token exists.
+// Do not erase a saved token for transient network or authorization errors.
+if(localStorage.getItem('wc2ApiToken') || sessionStorage.getItem('wc2ApiToken') || window.WC2_API_TOKEN){
+ document.body.classList.add('refreshing');
+ WC2.refresh().then(()=>render()).catch(e=>{console.error('Initial sync failed',e);render();toast('Automatic sync failed: '+e.message+' · Tap Refresh to retry')}).finally(()=>document.body.classList.remove('refreshing'));
+}
 })();

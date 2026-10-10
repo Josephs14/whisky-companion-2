@@ -550,6 +550,16 @@ async function createNewBottle(){
  let whiskyId=addMode==='existing'?document.getElementById('addWhiskyId')?.value:'';
  if(addMode==='existing'&&!whiskyId){toast('Select a whisky first.');return}
  if(addMode==='new'&&(!whisky['Distillery']||!whisky['Expression'])){toast('Distillery and Expression are required.');return}
+ if(addMode==='new'){
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const existing=state().whiskies.find(w=>{
+   const sameUrl=whisky['Whiskybase URL']&&norm(whisky['Whiskybase URL'])===norm(w['Whiskybase URL']);
+   const sameWbId=whisky['Whiskybase ID']&&norm(whisky['Whiskybase ID'])===norm(w['Whiskybase ID']);
+   const sameIdentity=norm(whisky['Distillery'])===norm(w['Distillery'])&&norm(whisky['Expression'])===norm(w['Expression'])&&norm(whisky['Bottler'])===norm(w['Bottler'])&&norm(whisky['Age Years'])===norm(w['Age Years'])&&norm(whisky['ABV %'])===norm(w['ABV %']);
+   return sameUrl||sameWbId||sameIdentity;
+  });
+  if(existing){toast('Matching whisky already exists ('+existing['Whisky ID']+'). Choose Existing Whisky to avoid a duplicate release.');return}
+ }
  if(bottle['Status']==='Open'){toast('Create the bottle as Sealed, then use Open Bottle to record lifecycle history.');return}
  if(bottle['Purchase Price']!==undefined&&bottle['Purchase Price']<0){toast('Purchase price cannot be negative.');return}
  if(addMode==='new'&&!confirm('Create a new whisky release and a bottle? This performs two separate database operations.'))return;

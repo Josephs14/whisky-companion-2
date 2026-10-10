@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', historyIncludeSameWhisky=false, editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', sessionFiltersOpen=false, sessionFilters={type:'',year:'',location:'',companion:'',blind:''}, tastingEdit=null, addingDram=false, dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:''};
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', historyIncludeSameWhisky=false, editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', sessionFiltersOpen=false, sessionFilters={type:'',year:'',location:'',companion:'',blind:''}, tastingEdit=null, addingDram=false, dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:'',completeness:''};
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -316,7 +316,7 @@ function tastingsPage(){
   <div class="meta">${esc(fmt(sess['Date']))} · ${esc(sess['Session Type']||'Tasting')} · ${esc(sess['Status']||'')}</div>
   <p>${esc(sess['Location']||'')}</p><div class="tastingManage"><button id="editSession">Edit Session</button><button id="deleteSession" class="dangerAction">Delete Session</button></div><p class="meta">With: ${esc(sess['Companions']||'—')} · Blind: ${esc(sess['Blind?']||'—')}</p></section>
   <div class="sectionHead"><h2>Drams (${drams.length})</h2><button class="filterBtn" id="addDramSession">+ Add Dram</button></div>
-  ${drams.map((d,i)=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div>${dramDescriptorSummary(d)}</button>${wb(d)}</div>`).join('')||'<section class="card">No drams recorded.</section>'}`;
+  ${drams.map((d,i)=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div>${dramDescriptorSummary(d)}<div class="meta">Notes: ${[d['Score'],d['Nose'],d['Palate'],d['Finish Character']||d['Finish Length'],d['Free Notes']].filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='').length}/5 fields</div></button>${wb(d)}</div>`).join('')||'<section class="card">No drams recorded.</section>'}`;
  }
  const q=tastingSearch.trim().toLowerCase();
  if(tastingView==='drams'){
@@ -334,6 +334,7 @@ function tastingsPage(){
    if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;
    if(f.peated&&peat(w['Peated'])!==f.peated)return false;
    if(f.session&&String(d['Session ID'])!==f.session)return false;
+   if(f.completeness){const fields=[d['Score'],d['Nose'],d['Palate'],d['Finish Character']||d['Finish Length'],d['Free Notes']];const count=fields.filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='').length;if(f.completeness==='complete'&&count!==5)return false;if(f.completeness==='incomplete'&&count===5)return false;if(f.completeness==='missingScore'&&fields[0]!==null&&fields[0]!==undefined&&String(fields[0]).trim()!=='')return false;}
    if(f.bottleLink){const bid=String(d['Bottle ID']||'').trim(),b=bid?s.bottles.find(x=>String(x['Bottle ID'])===bid):null,valid=!!b&&String(b['Whisky ID'])===String(d['Whisky ID']);if(f.bottleLink==='linked'&&!valid)return false;if(f.bottleLink==='unlinked'&&bid)return false;if(f.bottleLink==='invalid'&&(!bid||valid))return false;}
    if(f.year&&year(d)!==f.year)return false;
    if(f.age==='NAS'&&age!==null)return false;
@@ -358,6 +359,7 @@ function tastingsPage(){
   <label>Age<select data-dram-filter="age">${options(['NAS','0-9','10-17','18+'],f.age)}</select></label>
   <label>Score<select data-dram-filter="score">${options(['unscored','under70','70-79','80-89','90+'],f.score)}</select></label>
   <label>Tasting year<select data-dram-filter="year">${options(vals(year).reverse(),f.year)}</select></label>
+  <label>Note completeness<select data-dram-filter="completeness"><option value="">All</option><option value="complete" ${f.completeness==='complete'?'selected':''}>Complete (5/5)</option><option value="incomplete" ${f.completeness==='incomplete'?'selected':''}>Needs notes (under 5/5)</option><option value="missingScore" ${f.completeness==='missingScore'?'selected':''}>Missing score</option></select></label>
   <label>Bottle association<select data-dram-filter="bottleLink"><option value="">All</option><option value="linked" ${f.bottleLink==='linked'?'selected':''}>Linked to collection bottle</option><option value="unlinked" ${f.bottleLink==='unlinked'?'selected':''}>Whisky only · no bottle</option><option value="invalid" ${f.bottleLink==='invalid'?'selected':''}>Invalid or missing bottle reference</option></select></label>
   <label>Session<select data-dram-filter="session"><option value="">All</option>${[...allSessions.values()].map(sess=>`<option value="${esc(sess['Session ID'])}" ${f.session===String(sess['Session ID'])?'selected':''}>${esc(sess['Session Name']||sess['Location']||sess['Session ID'])}</option>`).join('')}</select></label>
   </div><button type="button" class="clearFilters" id="clearDramFilters">Clear all filters</button></section>`:''}
@@ -452,7 +454,7 @@ function bind(){
  document.querySelectorAll('[data-dram-id]').forEach(el=>el.onclick=()=>{selectedDramId=el.dataset.dramId;render();window.scrollTo(0,0)});
  const dramToggle=document.getElementById('dramFilterToggle');if(dramToggle)dramToggle.onclick=()=>{dramFiltersOpen=!dramFiltersOpen;render()};
  document.querySelectorAll('[data-dram-filter]').forEach(el=>el.onchange=()=>{dramFilters[el.dataset.dramFilter]=el.value;render()});
- const clearDramFilters=document.getElementById('clearDramFilters');if(clearDramFilters)clearDramFilters.onclick=()=>{dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:''};render()};
+ const clearDramFilters=document.getElementById('clearDramFilters');if(clearDramFilters)clearDramFilters.onclick=()=>{dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:'',completeness:''};render()};
  const clearDramSearch=document.getElementById('clearDramSearch');if(clearDramSearch)clearDramSearch.onclick=()=>{tastingSearch='';render()};
  const sessionToggle=document.getElementById('sessionFilterToggle');if(sessionToggle)sessionToggle.onclick=()=>{sessionFiltersOpen=!sessionFiltersOpen;render()};
  document.querySelectorAll('[data-session-filter]').forEach(el=>el.onchange=()=>{sessionFilters[el.dataset.sessionFilter]=el.value;render()});

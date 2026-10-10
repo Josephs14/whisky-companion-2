@@ -178,6 +178,19 @@ function bottleDetail(b,w){
  ${b['Notes']?`<div class="sectionHead"><h2>Notes</h2></div><section class="card notes">${esc(b['Notes'])}</section>`:''}`;
 }
 
+function insightsPage(){
+ const s=state(),wi=new Map(s.whiskies.map(w=>[String(w['Whisky ID']),w]));
+ const scored=s.drams.map(d=>({d,score:num(d['Score']),w:wi.get(String(d['Whisky ID']))||{}})).filter(x=>x.score!==null&&x.score>=0&&x.score<=100);
+ const average=arr=>arr.length?(arr.reduce((sum,x)=>sum+x.score,0)/arr.length).toFixed(1):'—';
+ const groups=new Map();
+ scored.forEach(x=>{const name=String(x.w['Distillery']||x.w['Brand / Producer']||'').trim();if(!name)return;if(!groups.has(name))groups.set(name,[]);groups.get(name).push(x)});
+ const leaders=[...groups].filter(([,arr])=>arr.length>=3).map(([name,arr])=>({name,count:arr.length,average:average(arr)})).sort((a,b)=>Number(b.average)-Number(a.average)||b.count-a.count).slice(0,10);
+ const scoredUnique=new Set(scored.map(x=>String(x.d['Whisky ID'])).filter(Boolean)).size;
+ const kpis=[['Scored drams',scored.length],['Average score',average(scored)],['Scored whiskies',scoredUnique],['Distilleries (3+ scores)',[...groups.values()].filter(a=>a.length>=3).length]];
+ return `<div class="topbar"><div><div class="title">Insights</div><div class="sync">Based on your recorded tastings</div></div><button class="iconBtn" id="insightsRefresh" aria-label="Refresh insights">↻</button></div>
+ <section class="card setup"><h3>Tasting overview</h3><div class="detailList">${kpis.map(([label,value])=>'<div><span>'+esc(label)+'</span><b>'+esc(value)+'</b></div>').join('')}</div><div class="meta">Scores are included only when numeric and between 0 and 100. Unscored drams are excluded from score averages.</div></section>
+ <div class="sectionHead"><h2>Highest-rated distilleries</h2></div><section class="card setup"><div class="meta">Minimum 3 scored drams per distillery. Ranked by average tasting score; this is not a ranking of unique bottles.</div><div class="detailList">${leaders.length?leaders.map((x,i)=>'<div><span>'+(i+1)+'. '+esc(x.name)+' · '+x.count+' drams</span><b>'+esc(x.average)+'</b></div>').join(''):'<div class="meta">Not enough scored tastings to rank distilleries yet.</div>'}</div></section>`;
+}
 function generic(title,text){return `<div class="topbar"><div class="title">${title}</div></div><div class="card placeholder"><b>${title}</b><br><br>${text}</div>`}
 function setup(){return `<div class="topbar"><div class="brand"><div class="logo">🥃</div><div class="title">Whisky Companion</div></div></div><div class="card setup"><div class="name">Connect this device</div><div class="meta">Enter the private API token for this development device. It is stored only for this browser session and is not committed to GitHub.</div><input id="tokenInput" type="password" autocomplete="off" placeholder="API token"><button class="primary" id="saveToken">Connect & Refresh</button></div>`}
 function bottom(){return `<nav class="bottom"><div class="bottomInner">${[['Home','⌂'],['Collection','🍾'],['Tastings','🥃'],['Live','📷'],['Insights','▥']].map(([x,i])=>`<button data-tab="${x}" class="${tab===x?'active':''}"><span>${i}</span>${x}</button>`).join('')}</div></nav>`}
@@ -385,11 +398,12 @@ function tastingsPage(){
 }
 function render(){
  const hasToken=!!(localStorage.getItem('wc2ApiToken') || sessionStorage.getItem('wc2ApiToken') || window.WC2_API_TOKEN);
- let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?generic('Live Tasting','Fast dram entry, photo recognition and session workflow will be built here.'):tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):generic('Insights','Dynamic collection and tasting analytics will be built from the canonical database.');
+ let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?generic('Live Tasting','Fast dram entry, photo recognition and session workflow will be built here.'):tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):tab==='Insights'?insightsPage():generic('Insights','This section is being developed.');
  root.innerHTML=`<main class="shell">${body}</main>${hasToken?bottom():''}`;
  bind();
 }
 function bind(){
+ const insightsRefresh=document.getElementById('insightsRefresh');if(insightsRefresh)insightsRefresh.onclick=async()=>{try{await WC2.refresh();render();toast('Insights refreshed')}catch(e){toast('Refresh failed: '+e.message)}};
  const sortSelect=document.getElementById('collectionSort');if(sortSelect)sortSelect.onchange=()=>{collectionSort=sortSelect.value;render()};
  const createSession=document.getElementById('createSession');if(createSession)createSession.onclick=()=>{creatingSession=true;selectedSessionId=null;render();window.scrollTo(0,0)};
  for(const id of ['cancelCreateSession','cancelCreateSessionBottom']){const el=document.getElementById(id);if(el)el.onclick=()=>{creatingSession=false;render()}}

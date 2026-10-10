@@ -667,8 +667,19 @@ async function saveBottleChanges(){
  try{
   const action=editSection==='bottle'?'UPDATE_BOTTLE':'UPDATE_WHISKY';
   const id=editSection==='bottle'?{bottleId:b['Bottle ID']}:{whiskyId:b['Whisky ID']};
-  await WC2.api(action,{...id,changes});
-  await WC2.refresh();bottleView='detail';render();toast('Changes saved');
+  const result=await WC2.api(action,{...id,changes});
+  if(result.success!==true||result.dryRun===true)throw new Error('Backend did not confirm the update. Refresh and review before retrying.');
+  await WC2.refresh();
+  const updated=editSection==='bottle'?state().bottles.find(x=>String(x['Bottle ID'])===String(b['Bottle ID'])):state().whiskies.find(x=>String(x['Whisky ID'])===String(b['Whisky ID']));
+  if(!updated)throw new Error('Updated record not found after refresh. Check Collection before retrying.');
+  const mismatch=Object.entries(changes).filter(([key,value])=>{
+   const actual=updated[key];
+   if(typeof value==='number')return num(actual)!==value;
+   if(dates.has(key))return dateInput(actual)!==dateInput(value);
+   return String(actual??'').trim()!==String(value??'').trim();
+  });
+  if(mismatch.length)throw new Error('Update could not be verified for: '+mismatch.map(([key])=>key).join(', ')+'. Review the record before retrying.');
+  bottleView='detail';render();toast('Changes saved and verified');
  }catch(e){toast('Save failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Save Changes'}}
 }
 async function saveBottleTasting(){

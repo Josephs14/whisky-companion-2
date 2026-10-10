@@ -208,7 +208,16 @@ function insightsPage(){
 }
 function competitionOverview(){
  const rounds=Array.isArray(state().competition)?state().competition:[];
- return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Read-only historical overview. Whisky identities and answers are intentionally not shown. Secure blind tasting is not yet available because the API exposes identities to the browser.</div><div class="detailList"><div><span>Recorded competition rounds</span><b>'+rounds.length+'</b></div></div><div class="meta">Round details and reveal controls will be enabled only after backend identity protection is implemented.</div></section>';
+ const sessions=new Map(state().sessions.map(s=>[String(s['Session ID']||''),s]));
+ const groups=new Map();let unresolved=0;
+ for(const r of rounds){
+  const id=String(r['Session ID']||'').trim();
+  if(!id||!sessions.has(id)){unresolved++;continue}
+  groups.set(id,(groups.get(id)||0)+1);
+ }
+ const entries=[...groups].sort((a,b)=>dateValue(sessions.get(b[0])['Date'])-dateValue(sessions.get(a[0])['Date']));
+ const linked=entries.map(([id,count])=>{const s=sessions.get(id);return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0"><div><b>'+esc(s['Session Name']||'Tasting session')+'</b><div class="meta">'+esc(dateInput(s['Date'])||'Date unknown')+' · '+count+' competition round'+(count===1?'':'s')+'</div></div><button type="button" class="filterBtn" data-live-session="'+esc(id)+'">Open session →</button></div>'}).join('');
+ return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Historical, read-only overview. Answers and whisky identities are not shown here. This is not a secure blind interface: the current API still exposes identities to the browser.</div><div class="detailList"><div><span>Recorded rounds</span><b>'+rounds.length+'</b></div><div><span>Linked sessions</span><b>'+groups.size+'</b></div><div><span>Unlinked / unresolved rounds</span><b>'+unresolved+'</b></div></div>'+(linked||'<div class="meta">No rounds linked by Session ID. Historical records are preserved.</div>')+'<div class="meta">Secure reveal and scoring controls remain disabled pending backend protection.</div></section>';
 }
 function livePage(){
  const s=state(),bySession=new Map();

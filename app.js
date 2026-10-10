@@ -206,6 +206,14 @@ function insightsPage(){
  ${distributionTable('Cask Type / Maturation','Cask Types')}
  <div class="sectionHead"><h2>Highest-rated distilleries</h2></div><section class="card setup"><div class="meta">Minimum 3 scored drams per distillery. Ranked by average tasting score; this is not a ranking of unique bottles.</div><div class="detailList">${leaders.length?leaders.map((x,i)=>'<div><span>'+(i+1)+'. '+esc(x.name)+' · '+x.count+' drams</span><b>'+esc(x.average)+'</b></div>').join(''):'<div class="meta">Not enough scored tastings to rank distilleries yet.</div>'}</div></section>`;
 }
+function livePage(){
+ const s=state(),bySession=new Map();
+ s.drams.forEach(d=>{const id=String(d['Session ID']||'');if(id)bySession.set(id,(bySession.get(id)||0)+1)});
+ const sessions=[...s.sessions].filter(x=>!/standalone/i.test(String(x['Session Name']||'')+' '+String(x['Session Type']||''))).sort((a,b)=>dateValue(b['Date'])-dateValue(a['Date'])).slice(0,12);
+ return `<div class="topbar"><div class="title">Live Tasting</div></div>
+ <section class="card setup"><h3>Quick entry</h3><div class="meta">Record drams during a tasting using the existing session and dram workflows. Whisky identities in this view are not hidden for blind competitions.</div><button type="button" class="primary" id="liveCreateSession">＋ Create Session</button><button type="button" class="filterBtn" id="liveAddDram">＋ Add Standalone Dram</button></section>
+ <div class="sectionHead"><h2>Recent sessions</h2></div><section class="card setup">${sessions.length?sessions.map(x=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0"><div><b>'+esc(x['Session Name']||x['Session Type']||'Session')+'</b><div class="meta">'+esc(x['Date']||'Date unknown')+' · '+(bySession.get(String(x['Session ID']))||0)+' drams · '+esc(x['Status']||'')+'</div></div><button type="button" class="filterBtn" data-live-session="'+esc(x['Session ID'])+'">Open →</button></div>').join(''):'<div class="meta">No sessions recorded.</div>'}</section>`;
+}
 function generic(title,text){return `<div class="topbar"><div class="title">${title}</div></div><div class="card placeholder"><b>${title}</b><br><br>${text}</div>`}
 function setup(){return `<div class="topbar"><div class="brand"><div class="logo">🥃</div><div class="title">Whisky Companion</div></div></div><div class="card setup"><div class="name">Connect this device</div><div class="meta">Enter the private API token for this development device. It is stored only for this browser session and is not committed to GitHub.</div><input id="tokenInput" type="password" autocomplete="off" placeholder="API token"><button class="primary" id="saveToken">Connect & Refresh</button></div>`}
 function bottom(){return `<nav class="bottom"><div class="bottomInner">${[['Home','⌂'],['Collection','🍾'],['Tastings','🥃'],['Live','📷'],['Insights','▥']].map(([x,i])=>`<button data-tab="${x}" class="${tab===x?'active':''}"><span>${i}</span>${x}</button>`).join('')}</div></nav>`}
@@ -413,11 +421,14 @@ function tastingsPage(){
 }
 function render(){
  const hasToken=!!(localStorage.getItem('wc2ApiToken') || sessionStorage.getItem('wc2ApiToken') || window.WC2_API_TOKEN);
- let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?generic('Live Tasting','Fast dram entry, photo recognition and session workflow will be built here.'):tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):tab==='Insights'?insightsPage():generic('Insights','This section is being developed.');
+ let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?livePage():tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):tab==='Insights'?insightsPage():generic('Insights','This section is being developed.');
  root.innerHTML=`<main class="shell">${body}</main>${hasToken?bottom():''}`;
  bind();
 }
 function bind(){
+ const liveCreateSession=document.getElementById('liveCreateSession');if(liveCreateSession)liveCreateSession.onclick=()=>{tab='Tastings';creatingSession=true;selectedSessionId=null;addingDram=false;render();window.scrollTo(0,0)};
+ const liveAddDram=document.getElementById('liveAddDram');if(liveAddDram)liveAddDram.onclick=()=>{tab='Tastings';creatingSession=false;selectedSessionId=null;addingDram=true;selectedDramId=null;render();window.scrollTo(0,0)};
+ document.querySelectorAll('[data-live-session]').forEach(el=>el.onclick=()=>{tab='Tastings';creatingSession=false;addingDram=false;selectedDramId=null;selectedSessionId=el.dataset.liveSession;render();window.scrollTo(0,0)});
  const insightsRefresh=document.getElementById('insightsRefresh');if(insightsRefresh)insightsRefresh.onclick=async()=>{try{await WC2.refresh();render();toast('Insights refreshed')}catch(e){toast('Refresh failed: '+e.message)}};
  const sortSelect=document.getElementById('collectionSort');if(sortSelect)sortSelect.onchange=()=>{collectionSort=sortSelect.value;render()};
  const createSession=document.getElementById('createSession');if(createSession)createSession.onclick=()=>{creatingSession=true;selectedSessionId=null;render();window.scrollTo(0,0)};

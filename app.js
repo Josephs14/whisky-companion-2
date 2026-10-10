@@ -206,12 +206,17 @@ function insightsPage(){
  ${distributionTable('Cask Type / Maturation','Cask Types')}
  <div class="sectionHead"><h2>Highest-rated distilleries</h2></div><section class="card setup"><div class="meta">Minimum 3 scored drams per distillery. Ranked by average tasting score; this is not a ranking of unique bottles.</div><div class="detailList">${leaders.length?leaders.map((x,i)=>'<div><span>'+(i+1)+'. '+esc(x.name)+' · '+x.count+' drams</span><b>'+esc(x.average)+'</b></div>').join(''):'<div class="meta">Not enough scored tastings to rank distilleries yet.</div>'}</div></section>`;
 }
+function competitionOverview(){
+ const rounds=Array.isArray(state().competition)?state().competition:[];
+ return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Read-only historical overview. Whisky identities and answers are intentionally not shown. Secure blind tasting is not yet available because the API exposes identities to the browser.</div><div class="detailList"><div><span>Recorded competition rounds</span><b>'+rounds.length+'</b></div></div><div class="meta">Round details and reveal controls will be enabled only after backend identity protection is implemented.</div></section>';
+}
 function livePage(){
  const s=state(),bySession=new Map();
  s.drams.forEach(d=>{const id=String(d['Session ID']||'');if(id)bySession.set(id,(bySession.get(id)||0)+1)});
  const sessions=[...s.sessions].filter(x=>!/standalone/i.test(String(x['Session Name']||'')+' '+String(x['Session Type']||''))).sort((a,b)=>dateValue(b['Date'])-dateValue(a['Date'])).slice(0,12);
  return `<div class="topbar"><div class="title">Live Tasting</div></div>
  <section class="card setup"><h3>Quick entry</h3><div class="meta">Record drams during a tasting using the existing session and dram workflows. Whisky identities in this view are not hidden for blind competitions.</div><button type="button" class="primary" id="liveCreateSession">＋ Create Session</button><button type="button" class="filterBtn" id="liveAddDram">＋ Add Standalone Dram</button></section>
+ ${competitionOverview()}
  <div class="sectionHead"><h2>Recent sessions</h2></div><section class="card setup">${sessions.length?sessions.map(x=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0"><div><b>'+esc(x['Session Name']||x['Session Type']||'Session')+'</b><div class="meta">'+esc(x['Date']||'Date unknown')+' · '+(bySession.get(String(x['Session ID']))||0)+' drams · '+esc(x['Status']||'')+'</div></div><button type="button" class="filterBtn" data-live-session="'+esc(x['Session ID'])+'">Open →</button></div>').join(''):'<div class="meta">No sessions recorded.</div>'}</section>`;
 }
 function generic(title,text){return `<div class="topbar"><div class="title">${title}</div></div><div class="card placeholder"><b>${title}</b><br><br>${text}</div>`}

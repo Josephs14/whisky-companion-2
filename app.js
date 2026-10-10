@@ -171,7 +171,7 @@ function bottleDetail(b,w){
  return `<div class="topbar"><button class="backBtn" id="backCollection">‹ Collection</button><button class="iconBtn" id="detailRefresh">↻</button></div>
  <section class="detailHero card"><div class="detailBottle">${bottleImage(b['Bottle ID'],'bottleHeroImage')}</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||w['Series / Collection']||'Bottle')}</h1><span class="pill ${String(b['Status']||'').toLowerCase()}">${esc(b['Status']||'Unknown')}</span></div></section>
  ${whiskybaseLink(w)?`<div class="wbBottleLink"><a class="wbLink" href="${esc(whiskybaseLink(w))}" target="_blank" rel="noopener noreferrer">Whiskybase ↗</a></div>`:``}<div class="detailActions four"><button id="editBottle">✎<span>Edit</span></button><button id="tasteBottle">🥃<span>Taste</span></button><button id="historyBottle">▥<span>History</span></button><button id="deleteBottle" class="dangerAction">⌫<span>Delete</span></button></div>
- <div class="sectionHead"><h2>Bottle Management</h2></div><section class="card setup"><div class="meta">Status: <strong>${esc(b['Status']||'Unknown')}</strong> · Fill: <strong>${esc(b['Current Fill %']!==''&&b['Current Fill %']!=null?b['Current Fill %']+'%':'Not recorded')}</strong></div><div class="meta">Use the audited bottle actions below. Confirm the bottle and date before saving.</div><div class="detailActions"><button type="button" id="openManagedBottle" ${String(b['Status']||'').toLowerCase()==='sealed'?'':'disabled'}>Open Bottle</button><button type="button" id="changeManagedFill" ${String(b['Status']||'').toLowerCase()==='open'?'':'disabled'}>Change Fill</button><button type="button" id="finishManagedBottle" ${String(b['Status']||'').toLowerCase()==='open'?'':'disabled'}>Finish Bottle</button></div><button type="button" class="filterBtn" id="lifecycleHistory">View Full Bottle History →</button></section>
+ <div class="sectionHead"><h2>Bottle Management</h2></div><section class="card setup"><div class="meta">Status: <strong>${esc(b['Status']||'Unknown')}</strong> · Fill: <strong>${esc(b['Current Fill %']!==''&&b['Current Fill %']!=null?b['Current Fill %']+'%':'Not recorded')}</strong></div><div class="meta">Preview only — backend transaction parameters are being verified. No changes will be saved.</div><div class="detailActions"><button type="button" id="openManagedBottle" ${String(b['Status']||'').toLowerCase()==='sealed'?'':'disabled'}>Open Bottle</button><button type="button" id="changeManagedFill" ${String(b['Status']||'').toLowerCase()==='open'?'':'disabled'}>Change Fill</button><button type="button" id="finishManagedBottle" ${String(b['Status']||'').toLowerCase()==='open'?'':'disabled'}>Finish Bottle</button></div><button type="button" class="filterBtn" id="lifecycleHistory">View Full Bottle History →</button></section>
  <div class="sectionHead"><h2>Bottle Details</h2></div><section class="card detailList">${fields.filter(x=>x[1]!==''&&x[1]!=null).map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
  ${b['Notes']?`<div class="sectionHead"><h2>Notes</h2></div><section class="card notes">${esc(b['Notes'])}</section>`:''}`;
 }
@@ -480,18 +480,18 @@ function bind(){
  const backDetail=document.getElementById('backBottleDetail');if(backDetail)backDetail.onclick=()=>{bottleView='detail';render()};
  const editBottle=document.getElementById('editBottle');if(editBottle)editBottle.onclick=()=>{bottleView='edit';render()};
  const tasteBottle=document.getElementById('tasteBottle');if(tasteBottle)tasteBottle.onclick=()=>{bottleView='taste';render()};
- const lifecycleAction=async(action,extra={})=>{
+ const lifecycleAction=(action,extra={})=>{
   const bottle=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!bottle)return;
   const status=String(bottle['Status']||'').toLowerCase();
-  if(action==='OPEN_BOTTLE'&&status!=='sealed'||action!=='OPEN_BOTTLE'&&status!=='open'){toast('Bottle status has changed. Refresh and retry.');return}
-  const date=new Date().toLocaleDateString('en-CA');
-  if(!confirm(action.replaceAll('_',' ')+' · '+bottle['Bottle ID']+' · '+date+'? This will update the real collection.'))return;
-  try{await WC2.api(action,{bottleId:bottle['Bottle ID'],eventDate:date,...extra});await WC2.refresh();render();toast('Bottle updated — check History.')}catch(e){toast('Not saved: '+e.message)}
+  if((action==='OPEN_BOTTLE'&&status!=='sealed')||(action!=='OPEN_BOTTLE'&&status!=='open')){toast('Bottle status has changed. Refresh and retry.');return}
+  const actionName={OPEN_BOTTLE:'Open Bottle',CHANGE_FILL:'Change Fill',FINISH_BOTTLE:'Finish Bottle'}[action]||action;
+  const details=actionName+' · '+bottle['Bottle ID']+(extra.fillPercent!==undefined?' · '+extra.fillPercent+'%':'');
+  alert(details+'\n\nPreview only. No changes have been submitted. Backend parameters must be verified before this action is enabled.');
  };
  const openManaged=document.getElementById('openManagedBottle');if(openManaged)openManaged.onclick=()=>lifecycleAction('OPEN_BOTTLE');
  const fillManaged=document.getElementById('changeManagedFill');if(fillManaged)fillManaged.onclick=()=>{
   const bottle=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!bottle)return;
-  const raw=prompt('New fill percentage (0–100):',String(bottle['Current Fill %']??100));if(raw===null)return;
+  const raw=prompt('Preview new fill percentage (0–100):',String(bottle['Current Fill %']??100));if(raw===null)return;
   const value=Number(raw);if(!raw.trim()||!Number.isFinite(value)||value<=0||value>100){toast('Enter a fill percentage above 0 and up to 100. Use Finish Bottle for 0%.');return}
   lifecycleAction('CHANGE_FILL',{fillPercent:value});
  };

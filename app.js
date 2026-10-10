@@ -149,9 +149,11 @@ function bottleDetail(b,w){
   const bottleFields=['Bottle Number','Collection Role','Acquisition Date','Acquisition Date Precision','Acquisition Type','Shop / Source','Purchase Price','Currency','Status','Open Date','Open Date Precision','Finished Date','Finished Date Precision','Current Fill %','Replace When Empty','Notes','Verification Status'];
   const whiskyFields=['Whisky Type','Distillery','Bottler','Brand / Producer','Expression','Series / Collection','Release Type','Country','Region','Bottling Year','Age Years','Age Statement','ABV %','Bottle Size ml','Cask Type / Maturation','Cask Number','Outturn','Peated','Whiskybase ID','Whiskybase URL','Verification Status','Last Verified'];
   const fields=editSection==='bottle'?bottleFields:whiskyFields, source=editSection==='bottle'?b:w;
+  const lifecycleReadOnly=new Set(['Status','Open Date','Open Date Precision','Finished Date','Finished Date Precision','Current Fill %']);
   const form=fields.map(key=>{
    const dateField=['Acquisition Date','Open Date','Finished Date','Last Verified'].includes(key);
    const val=dateField?dateInput(source[key]):(source[key]??''),label=esc(key),inputId=esc(key);
+   if(editSection==='bottle'&&lifecycleReadOnly.has(key))return '<label>'+label+'<input type="text" value="'+esc(val)+'" disabled><span class="meta">Managed through bottle lifecycle actions.</span></label>';
    if(fieldChoices[key]||key==='Status')return `<label>${label}${fieldSelect(key,editSection,val,`data-edit-field="${inputId}" data-edit-entity="${editSection}" ${key==='Status'?'disabled':''}`)}</label>`;
    if(key==='Notes')return `<label>${label}<textarea data-edit-field="${inputId}" data-edit-entity="bottle" rows="4">${esc(val)}</textarea></label>`;
    const type=dateField?'date':(['Purchase Price','Current Fill %','Age Years','ABV %','Bottle Size ml','Bottling Year','Outturn'].includes(key)?'number':'text');
@@ -656,7 +658,7 @@ async function saveBottleChanges(){
   const old=dates.has(key)?dateInput(source[key]):String(source[key]??'');
   const value=el.value;
   if(String(value)===String(old))continue;
-  if(editSection==='bottle'&&protectedBottle.has(key)){toast('Status, fill and lifecycle dates use dedicated actions. No changes saved.');return}
+  if(editSection==='bottle'&&protectedBottle.has(key))continue;
   if(editSection==='whisky'&&protectedWhisky.has(key)){toast('This field cannot be edited.');return}
   if(el.type==='number'&&value!==''&&!Number.isFinite(Number(value))){toast('Invalid number: '+key);return}
   changes[key]=el.type==='number'&&value!==''?Number(value):value;

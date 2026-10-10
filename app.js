@@ -190,11 +190,23 @@ function insightsPage(){
  const maxBand=Math.max(1,...scoreBands.map(b=>b.count));
  const sessionCounts=new Map();s.drams.forEach(d=>{const id=String(d['Session ID']||'');if(id)sessionCounts.set(id,(sessionCounts.get(id)||0)+1)});
  const completed=s.sessions.filter(x=>String(x['Status']||'').trim().toLowerCase()==='completed').length;
+ const distribution=field=>{
+  const counts=new Map();
+  const add=w=>{const value=String(w[field]||'').trim()||'Unknown / not recorded';counts.set(value,(counts.get(value)||0)+1)};
+  s.bottles.forEach(b=>add(wi.get(String(b['Whisky ID']))||{}));
+  const owned=new Map(counts);counts.clear();
+  s.drams.forEach(d=>add(wi.get(String(d['Whisky ID']))||{}));
+  const tasted=new Map(counts);
+  return [...new Set([...owned.keys(),...tasted.keys()])].map(name=>({name,owned:owned.get(name)||0,tasted:tasted.get(name)||0})).sort((a,b)=>b.tasted-a.tasted||b.owned-a.owned||a.name.localeCompare(b.name));
+ };
+ const distributionTable=(field,title)=>{const rows=distribution(field);return '<div class="sectionHead"><h2>'+title+'</h2></div><section class="card setup"><div class="meta">Owned = physical bottles, including finished bottles. Tasted = dram records, including repeat tastings. Unknown metadata is shown separately.</div><div class="detailList">'+rows.map(x=>'<div><span>'+esc(x.name)+'</span><b>'+x.owned+' owned · '+x.tasted+' tasted</b></div>').join('')+'</div></section>'};
  const kpis=[['Scored drams',scored.length],['Average score',average(scored)],['Scored whiskies',scoredUnique],['Distilleries (3+ scores)',[...groups.values()].filter(a=>a.length>=3).length]];
  return `<div class="topbar"><div><div class="title">Insights</div><div class="sync">Based on your recorded tastings</div></div><button class="iconBtn" id="insightsRefresh" aria-label="Refresh insights">↻</button></div>
  <section class="card setup"><h3>Tasting overview</h3><div class="detailList">${kpis.map(([label,value])=>'<div><span>'+esc(label)+'</span><b>'+esc(value)+'</b></div>').join('')}</div><div class="meta">Scores are included only when numeric and between 0 and 100. Unscored drams are excluded from score averages.</div></section>
  <div class="sectionHead"><h2>Score distribution</h2></div><section class="card setup"><div class="meta">Number of scored drams in each score range.</div>${scoreBands.map(b=>'<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px"><span>'+esc(b.label)+'</span><b>'+b.count+'</b></div><div style="height:9px;border-radius:8px;background:var(--line,#ddd);overflow:hidden;margin-top:5px"><div style="height:100%;width:'+(100*b.count/maxBand).toFixed(1)+'%;background:var(--accent,#b68a49);border-radius:8px"></div></div></div>').join('')}</section>
  <div class="sectionHead"><h2>Session activity</h2></div><section class="card setup"><div class="detailList"><div><span>Recorded sessions</span><b>${s.sessions.length}</b></div><div><span>Completed sessions</span><b>${completed}</b></div><div><span>Drams recorded</span><b>${s.drams.length}</b></div><div><span>Sessions with drams</span><b>${sessionCounts.size}</b></div></div><div class="meta">Session totals include standalone records when present.</div></section>
+ ${distributionTable('Region','Regions: Owned vs Tasted')}
+ ${distributionTable('Cask Type / Maturation','Cask Types: Owned vs Tasted')}
  <div class="sectionHead"><h2>Highest-rated distilleries</h2></div><section class="card setup"><div class="meta">Minimum 3 scored drams per distillery. Ranked by average tasting score; this is not a ranking of unique bottles.</div><div class="detailList">${leaders.length?leaders.map((x,i)=>'<div><span>'+(i+1)+'. '+esc(x.name)+' · '+x.count+' drams</span><b>'+esc(x.average)+'</b></div>').join(''):'<div class="meta">Not enough scored tastings to rank distilleries yet.</div>'}</div></section>`;
 }
 function generic(title,text){return `<div class="topbar"><div class="title">${title}</div></div><div class="card placeholder"><b>${title}</b><br><br>${text}</div>`}

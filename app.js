@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', historyIncludeSameWhisky=false, editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', sessionFiltersOpen=false, sessionFilters={type:'',year:'',location:'',companion:'',blind:''}, tastingEdit=null, addingDram=false, dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:''};
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', historyIncludeSameWhisky=false, editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', sessionFiltersOpen=false, sessionFilters={type:'',year:'',location:'',companion:'',blind:''}, tastingEdit=null, addingDram=false, dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:''};
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -333,6 +333,7 @@ function tastingsPage(){
    if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;
    if(f.peated&&peat(w['Peated'])!==f.peated)return false;
    if(f.session&&String(d['Session ID'])!==f.session)return false;
+   if(f.bottleLink){const bid=String(d['Bottle ID']||'').trim(),b=bid?s.bottles.find(x=>String(x['Bottle ID'])===bid):null,valid=!!b&&String(b['Whisky ID'])===String(d['Whisky ID']);if(f.bottleLink==='linked'&&!valid)return false;if(f.bottleLink==='unlinked'&&bid)return false;if(f.bottleLink==='invalid'&&(!bid||valid))return false;}
    if(f.year&&year(d)!==f.year)return false;
    if(f.age==='NAS'&&age!==null)return false;
    if(f.age==='0-9'&&(age===null||age>9))return false;
@@ -356,6 +357,7 @@ function tastingsPage(){
   <label>Age<select data-dram-filter="age">${options(['NAS','0-9','10-17','18+'],f.age)}</select></label>
   <label>Score<select data-dram-filter="score">${options(['unscored','under70','70-79','80-89','90+'],f.score)}</select></label>
   <label>Tasting year<select data-dram-filter="year">${options(vals(year).reverse(),f.year)}</select></label>
+  <label>Bottle association<select data-dram-filter="bottleLink"><option value="">All</option><option value="linked" ${f.bottleLink==='linked'?'selected':''}>Linked to collection bottle</option><option value="unlinked" ${f.bottleLink==='unlinked'?'selected':''}>Whisky only · no bottle</option><option value="invalid" ${f.bottleLink==='invalid'?'selected':''}>Invalid or missing bottle reference</option></select></label>
   <label>Session<select data-dram-filter="session"><option value="">All</option>${[...allSessions.values()].map(sess=>`<option value="${esc(sess['Session ID'])}" ${f.session===String(sess['Session ID'])?'selected':''}>${esc(sess['Session Name']||sess['Location']||sess['Session ID'])}</option>`).join('')}</select></label>
   </div><button type="button" class="clearFilters" id="clearDramFilters">Clear all filters</button></section>`:''}
   <div class="sectionHead"><h2>All Drams (${rows.length})</h2></div>
@@ -449,7 +451,7 @@ function bind(){
  document.querySelectorAll('[data-dram-id]').forEach(el=>el.onclick=()=>{selectedDramId=el.dataset.dramId;render();window.scrollTo(0,0)});
  const dramToggle=document.getElementById('dramFilterToggle');if(dramToggle)dramToggle.onclick=()=>{dramFiltersOpen=!dramFiltersOpen;render()};
  document.querySelectorAll('[data-dram-filter]').forEach(el=>el.onchange=()=>{dramFilters[el.dataset.dramFilter]=el.value;render()});
- const clearDramFilters=document.getElementById('clearDramFilters');if(clearDramFilters)clearDramFilters.onclick=()=>{dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:''};render()};
+ const clearDramFilters=document.getElementById('clearDramFilters');if(clearDramFilters)clearDramFilters.onclick=()=>{dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:''};render()};
  const clearDramSearch=document.getElementById('clearDramSearch');if(clearDramSearch)clearDramSearch.onclick=()=>{tastingSearch='';render()};
  const sessionToggle=document.getElementById('sessionFilterToggle');if(sessionToggle)sessionToggle.onclick=()=>{sessionFiltersOpen=!sessionFiltersOpen;render()};
  document.querySelectorAll('[data-session-filter]').forEach(el=>el.onchange=()=>{sessionFilters[el.dataset.sessionFilter]=el.value;render()});

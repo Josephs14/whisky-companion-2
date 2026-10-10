@@ -153,6 +153,7 @@ function bottleDetail(b,w){
   const form=fields.map(key=>{
    const dateField=['Acquisition Date','Open Date','Finished Date','Last Verified'].includes(key);
    const val=dateField?dateInput(source[key]):(source[key]??''),label=esc(key),inputId=esc(key);
+   if(editSection==='bottle'&&key==='Status')return '<label>Bottle Status<select id="editBottleStatus"><option value="Sealed" '+(String(val).toLowerCase()==='sealed'?'selected':'')+'>Sealed</option><option value="Open" '+(String(val).toLowerCase()==='open'?'selected':'')+'>Open</option><option value="Finished" '+(String(val).toLowerCase()==='finished'?'selected':'')+'>Finished</option></select><span class="meta">Status changes use the validated lifecycle workflow. Supported: Sealed → Open and Open → Finished.</span></label>'; 
    if(editSection==='bottle'&&lifecycleReadOnly.has(key))return '<label>'+label+'<input type="text" value="'+esc(val)+'" disabled><span class="meta">Managed through bottle lifecycle actions.</span></label>';
    if(fieldChoices[key]||key==='Status')return `<label>${label}${fieldSelect(key,editSection,val,`data-edit-field="${inputId}" data-edit-entity="${editSection}" ${key==='Status'?'disabled':''}`)}</label>`;
    if(key==='Notes')return `<label>${label}<textarea data-edit-field="${inputId}" data-edit-entity="bottle" rows="4">${esc(val)}</textarea></label>`;
@@ -164,7 +165,7 @@ function bottleDetail(b,w){
   <div class="segmented editTabs"><button data-edit-section="bottle" class="${editSection==='bottle'?'active':''}">Bottle Details</button><button data-edit-section="whisky" class="${editSection==='whisky'?'active':''}">Whisky Details</button></div>
   <section class="card setup"><div class="meta">${editSection==='whisky'?'Shared release information — edits will affect every linked bottle and tasting.':'Details of this specific physical bottle.'}</div>
   <div class="editFields">${form}</div><button class="primary" id="saveBottleEdit">Save Changes</button>
-  <div class="meta" style="margin-top:12px">Save updates this tab only. Status, fill and lifecycle dates require their dedicated workflow and cannot be edited here. Whisky changes affect all linked bottles and tastings.</div></section>`;
+  <div class="meta" style="margin-top:12px">Save updates this tab only. Status changes use lifecycle validation. Fill and lifecycle dates remain managed by dedicated actions. Whisky changes affect all linked bottles and tastings.</div></section>`;
  }
  if(bottleView==='taste'){
   return `<div class="topbar"><button class="backBtn" id="backBottleDetail">‹ Bottle</button><div class="title">Taste Bottle</div><span></span></div><section class="detailHero card"><div class="detailBottle">🥃</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||'Bottle')}</h1><div class="meta">Linked to ${esc(id)}</div></div></section><section class="card setup"><label>Score<input id="tasteScore" type="number" min="0" max="100" step="0.5" placeholder="Optional"></label><label>Nose<textarea id="tasteNose" rows="2"></textarea></label><label>Palate<textarea id="tastePalate" rows="2"></textarea></label><label>Finish<textarea id="tasteFinish" rows="2"></textarea></label><label>Notes<textarea id="tasteNotes" rows="3"></textarea></label><button class="primary" id="saveBottleTaste">Save Tasting</button></section>`;
@@ -578,6 +579,16 @@ function bind(){
     render();
     alert('Bottle updated and verified.\\n'+summary+'\\n\\nYou can review the change in Bottle History.');
   }catch(e){alert('Bottle operation was not confirmed.\\n'+String(e.message||e)+'\\n\\nRefresh the collection to check its current status before retrying.')}
+ };
+ const editStatus=document.getElementById('editBottleStatus');if(editStatus)editStatus.onchange=async()=>{
+  const bottle=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(!bottle)return;
+  const before=String(bottle['Status']||''),after=editStatus.value;
+  if(after===before)return;
+  const action=before==='Sealed'&&after==='Open'?'OPEN_BOTTLE':before==='Open'&&after==='Finished'?'FINISH_BOTTLE':null;
+  if(!action){alert('This status transition is not supported by the existing lifecycle API. Use the standard bottle actions or correct historical status through an audited backend workflow.');editStatus.value=before;return}
+  if([...document.querySelectorAll('[data-edit-field]')].some(el=>String(el.value)!==String(bottle[el.dataset.editField]??''))){if(!confirm('Unsaved detail edits will not be included in this status change. Continue?')){editStatus.value=before;return}}
+  await lifecycleAction(action);
+  const current=state().bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(current&&document.contains(editStatus))editStatus.value=String(current['Status']||before);
  };
  const openManaged=document.getElementById('openManagedBottle');if(openManaged)openManaged.onclick=()=>lifecycleAction('OPEN_BOTTLE');
  const fillManaged=document.getElementById('changeManagedFill');if(fillManaged)fillManaged.onclick=()=>{

@@ -171,6 +171,7 @@ function bottleDetail(b,w){
  return `<div class="topbar"><button class="backBtn" id="backCollection">‹ Collection</button><button class="iconBtn" id="detailRefresh">↻</button></div>
  <section class="detailHero card"><div class="detailBottle">${bottleImage(b['Bottle ID'],'bottleHeroImage')}</div><div><div class="eyebrow">${esc(w['Distillery']||w['Brand / Producer']||'Whisky')}</div><h1>${esc(w['Expression']||w['Series / Collection']||'Bottle')}</h1><span class="pill ${String(b['Status']||'').toLowerCase()}">${esc(b['Status']||'Unknown')}</span></div></section>
  ${whiskybaseLink(w)?`<div class="wbBottleLink"><a class="wbLink" href="${esc(whiskybaseLink(w))}" target="_blank" rel="noopener noreferrer">Whiskybase ↗</a></div>`:``}<div class="detailActions four"><button id="editBottle">✎<span>Edit</span></button><button id="tasteBottle">🥃<span>Taste</span></button><button id="historyBottle">▥<span>History</span></button><button id="deleteBottle" class="dangerAction">⌫<span>Delete</span></button></div>
+ <div class="sectionHead"><h2>Lifecycle</h2></div><section class="card setup"><div class="meta">Physical bottle status: <strong>${esc(b['Status']||'Unknown')}</strong> · Current fill: <strong>${esc(b['Current Fill %']!==''&&b['Current Fill %']!=null?b['Current Fill %']+'%':'Not recorded')}</strong></div><div class="meta">Opening, fill adjustments and finishing must use audited lifecycle actions. They are not editable through general bottle details.</div><button type="button" class="filterBtn" id="lifecycleHistory">View Bottle History →</button></section>
  <div class="sectionHead"><h2>Bottle Details</h2></div><section class="card detailList">${fields.filter(x=>x[1]!==''&&x[1]!=null).map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
  ${b['Notes']?`<div class="sectionHead"><h2>Notes</h2></div><section class="card notes">${esc(b['Notes'])}</section>`:''}`;
 }
@@ -479,6 +480,7 @@ function bind(){
  const backDetail=document.getElementById('backBottleDetail');if(backDetail)backDetail.onclick=()=>{bottleView='detail';render()};
  const editBottle=document.getElementById('editBottle');if(editBottle)editBottle.onclick=()=>{bottleView='edit';render()};
  const tasteBottle=document.getElementById('tasteBottle');if(tasteBottle)tasteBottle.onclick=()=>{bottleView='taste';render()};
+ const lifecycleHistory=document.getElementById('lifecycleHistory');if(lifecycleHistory)lifecycleHistory.onclick=()=>{bottleView='history';render()};
  const historyBottle=document.getElementById('historyBottle');if(historyBottle)historyBottle.onclick=()=>{bottleView='history';render()};
  const delBottle=document.getElementById('deleteBottle');if(delBottle)delBottle.onclick=()=>{if(confirm('Delete is not enabled yet because the API has no controlled DELETE_BOTTLE operation. No data has been changed.')){}};
  document.querySelectorAll('[data-edit-section]').forEach(el=>el.onclick=()=>{editSection=el.dataset.editSection;render()});

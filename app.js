@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const root=document.getElementById('app');
-let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', historyIncludeSameWhisky=false, editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', sessionFiltersOpen=false, sessionFilters={type:'',year:'',location:'',companion:'',blind:''}, tastingEdit=null, addingDram=false, creatingSession=false, dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:'',completeness:''};
+let tab='Home', noticeTimer=null, collectionFilter='Current', collectionQuery='', selectedBottleId=null, collectionFilters={distillery:'',region:'',country:'',age:'',abv:'',peated:'',bottler:'',cask:'',fill:'',finishedYear:''}, filtersOpen=false, bottleView='detail', historyIncludeSameWhisky=false, collectionSort='name', editSection='bottle', addMode='existing', selectedSessionId=null, selectedDramId=null, tastingView='sessions', tastingSearch='', sessionFiltersOpen=false, sessionFilters={type:'',year:'',location:'',companion:'',blind:''}, tastingEdit=null, addingDram=false, creatingSession=false, dramFiltersOpen=false, dramFilters={distillery:'',region:'',country:'',bottler:'',peated:'',age:'',score:'',year:'',session:'',bottleLink:'',completeness:''};
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const num=v=>{if(v===null||v===undefined||String(v).trim()==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -89,7 +89,7 @@ function collection(){
    if(f.fill==='low'&&(fill===null||fill>25))return false;if(f.fill==='mid'&&(fill===null||fill<26||fill>60))return false;if(f.fill==='high'&&(fill===null||fill<61))return false;
    if(f.finishedYear&&String(b['Finished Date']||'').indexOf(f.finishedYear)<0)return false;
    return true;
- }).sort((a,b)=>{const wa=wi.get(String(a['Whisky ID']))||{},wb=wi.get(String(b['Whisky ID']))||{};return String(wa['Distillery']||wa['Brand / Producer']||'').localeCompare(String(wb['Distillery']||wb['Brand / Producer']||''))||String(wa['Expression']||'').localeCompare(String(wb['Expression']||''))});
+ }).sort((a,b)=>{const wa=wi.get(String(a['Whisky ID']))||{},wb=wi.get(String(b['Whisky ID']))||{};const name=()=>String(wa['Distillery']||wa['Brand / Producer']||'').localeCompare(String(wb['Distillery']||wb['Brand / Producer']||''))||String(wa['Expression']||'').localeCompare(String(wb['Expression']||''));if(collectionSort==='recent')return dateValue(b['Acquisition Date'])-dateValue(a['Acquisition Date'])||name();if(collectionSort==='oldest')return dateValue(a['Acquisition Date'])-dateValue(b['Acquisition Date'])||name();if(collectionSort==='fillLow')return (num(a['Current Fill %'])??101)-(num(b['Current Fill %'])??101)||name();if(collectionSort==='fillHigh')return (num(b['Current Fill %'])??-1)-(num(a['Current Fill %'])??-1)||name();return name()});
  if(selectedBottleId){const b=s.bottles.find(x=>String(x['Bottle ID'])===String(selectedBottleId));if(b)return bottleDetail(b,wi.get(String(b['Whisky ID']))||{});selectedBottleId=null}
  const current=counts.Current;
  const dist=new Map(),reg=new Map();let abvs=[];
@@ -111,7 +111,7 @@ function collection(){
  ${collectionFilter==='Finished'?'<label>Finished year<select data-filter="finishedYear">'+opts(years,f.finishedYear)+'</select></label>':''}
  </div><button class="clearFilters" id="clearFilters">Clear filters</button></section>`:''}
  ${active.length?`<div class="filterChips">${active.map(([k,v])=>`<button data-clear-filter="${k}">${esc(v)} ×</button>`).join('')}</div>`:''}
- <div class="sectionHead"><h2>${collectionFilter} Bottles</h2><span class="meta">${filtered.length} shown</span></div>
+ <div class="sectionHead"><h2>${collectionFilter} Bottles</h2><span class="meta">${filtered.length} shown</span></div><div style="display:flex;justify-content:flex-end;margin:0 0 10px"><label class="meta" for="collectionSort">Sort: <select id="collectionSort" style="max-width:190px"><option value="name" ${collectionSort==='name'?'selected':''}>Distillery A–Z</option><option value="recent" ${collectionSort==='recent'?'selected':''}>Recently acquired</option><option value="oldest" ${collectionSort==='oldest'?'selected':''}>Oldest acquired</option><option value="fillLow" ${collectionSort==='fillLow'?'selected':''}>Lowest fill first</option><option value="fillHigh" ${collectionSort==='fillHigh'?'selected':''}>Highest fill first</option></select></label></div>
  <section class="bottleGrid">${filtered.length?filtered.map(b=>bottleCard(b,wi.get(String(b['Whisky ID']))||{})).join(''):'<div class="card placeholder">No bottles match this view.</div>'}</section>`;
 }
 function bottlePhoto(id){
@@ -388,6 +388,7 @@ function render(){
  bind();
 }
 function bind(){
+ const sortSelect=document.getElementById('collectionSort');if(sortSelect)sortSelect.onchange=()=>{collectionSort=sortSelect.value;render()};
  const createSession=document.getElementById('createSession');if(createSession)createSession.onclick=()=>{creatingSession=true;selectedSessionId=null;render();window.scrollTo(0,0)};
  for(const id of ['cancelCreateSession','cancelCreateSessionBottom']){const el=document.getElementById(id);if(el)el.onclick=()=>{creatingSession=false;render()}}
  const saveNewSession=document.getElementById('saveNewSession');if(saveNewSession)saveNewSession.onclick=async()=>{const get=id=>document.getElementById(id)?.value.trim()||'';const record={'Date':get('newSessionDate'),'Session Name':get('newSessionName'),'Session Type':get('newSessionType'),'Location':get('newSessionLocation'),'Companions':get('newSessionCompanions'),'Blind?':get('newSessionBlind'),'Notes':get('newSessionNotes')};if(!record.Date||!record['Session Name']){toast('Date and session name are required');return}saveNewSession.disabled=true;try{if(!confirm('Create session '+record['Session Name']+' on '+record.Date+'?'))return;const result=await WC2.api('CREATE_SESSION',{record});if(result.success!==true||result.dryRun===true)throw Error('Backend did not confirm creation');const id=result.record?.['Session ID'];await WC2.refresh();if(!id||!state().sessions.some(s=>String(s['Session ID'])===String(id))){toast('Creation not verified. Check Sessions before retrying.');return}creatingSession=false;selectedSessionId=id;render();toast('Session created')}catch(e){toast('Create session failed: '+e.message)}finally{if(document.contains(saveNewSession))saveNewSession.disabled=false}};

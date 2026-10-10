@@ -243,7 +243,7 @@ async function createNewDram(){
  const tastingDate=session?dateInput(session['Date']):date?.value;
  if(!tastingDate){toast('Tasting date is required');return}
  const record={'Tasting Context':session?'Session':'Standalone','Tasting Date':tastingDate};if(!makingWhisky)record['Whisky ID']=wi.value;
- if(bi?.value)record['Bottle ID']=bi.value;
+ if(bi?.value&&!makingWhisky)record['Bottle ID']=bi.value;
  if(session)record['Session ID']=selectedSessionId;
  if(n?.value)record['Dram #']=Number(n.value);
  if(sample?.value)record['Tasting Sample Type']=sample.value;
@@ -428,7 +428,7 @@ function bind(){
   const note=document.createElement('div');note.style.marginTop='10px';note.textContent='No metadata has been autofilled: the original page is blocked, and a search result alone cannot reliably verify an exact bottling. Use the sources above to confirm details, then enter them manually. Nothing is saved until you confirm.';status.appendChild(note);
   lookup.disabled=false;lookup.textContent='Find Alternative Sources';
  };
- const toggleNewWhisky=document.getElementById('toggleNewDramWhisky');if(toggleNewWhisky)toggleNewWhisky.onclick=()=>{const f=document.getElementById('newDramWhiskyFields');f.hidden=!f.hidden;toggleNewWhisky.textContent=f.hidden?'＋ Whisky not listed? Create new whisky':'− Cancel new whisky';document.getElementById('dramIdentitySearch').disabled=!f.hidden;};
+ const toggleNewWhisky=document.getElementById('toggleNewDramWhisky');if(toggleNewWhisky)toggleNewWhisky.onclick=()=>{const f=document.getElementById('newDramWhiskyFields');f.hidden=!f.hidden;toggleNewWhisky.textContent=f.hidden?'＋ Whisky not listed? Create new whisky':'− Cancel new whisky';document.getElementById('dramIdentitySearch').disabled=!f.hidden;if(!f.hidden){document.getElementById('dramSelectedBottle').value='';document.getElementById('dramSelectedWhisky').value='';document.getElementById('dramIdentitySelected').textContent='New whisky · no collection bottle linked';document.getElementById('dramIdentityResults').replaceChildren();}};
  document.querySelectorAll('[data-history-target]').forEach(el=>el.onclick=()=>{const id=el.dataset.historyId;if(el.dataset.historyTarget==='session'){selectedSessionId=id;selectedDramId=null;tastingView='sessions'}else{selectedDramId=id;selectedSessionId=null;tastingView='drams'}tastingEdit=null;tab='Tastings';render();window.scrollTo(0,0)});
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;if(tab==='Tastings'){selectedSessionId=null;selectedDramId=null}render()});
  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{tab=b.dataset.go;render()});
@@ -452,7 +452,7 @@ function bind(){
  const clearDramSearch=document.getElementById('clearDramSearch');if(clearDramSearch)clearDramSearch.onclick=()=>{tastingSearch='';render()};
  const sessionToggle=document.getElementById('sessionFilterToggle');if(sessionToggle)sessionToggle.onclick=()=>{sessionFiltersOpen=!sessionFiltersOpen;render()};
  document.querySelectorAll('[data-session-filter]').forEach(el=>el.onchange=()=>{sessionFilters[el.dataset.sessionFilter]=el.value;render()});
- const clearSession=document.getElementById('clearSessionFilters');if(clearSession)clearSession.onclick=()=>{sessionFilters={type:'',year:''};render()};
+ const clearSession=document.getElementById('clearSessionFilters');if(clearSession)clearSession.onclick=()=>{sessionFilters={type:'',year:'',location:'',companion:'',blind:''};render()};
  const editSession=document.getElementById('editSession');if(editSession)editSession.onclick=()=>{tastingEdit='session';render()};
  const editDram=document.getElementById('editDram');if(editDram)editDram.onclick=()=>{const d=state().drams.find(x=>String(x['Tasting ID'])===String(selectedDramId))||{};dramDescriptorDraft={Nose:descriptorValues(d,'Nose'),Palate:descriptorValues(d,'Palate'),Finish:descriptorValues(d,'Finish')};tastingEdit='dram';render()};
  const cancelEdit=document.getElementById('cancelTastingEdit');if(cancelEdit)cancelEdit.onclick=()=>{if(addingDram){addingDram=false;render();return}tastingEdit=null;render()};

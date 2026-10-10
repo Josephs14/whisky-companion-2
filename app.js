@@ -304,7 +304,7 @@ function tastingsPage(){
   <div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span><span>Dram # <b>${esc(d['Dram #']||'—')}</b></span></div>
   ${dramDescriptorSummary(d)}
   ${['Nose','Palate','Finish Length','Finish Character','Free Notes','Buy Decision','Memorability'].filter(k=>d[k]).map(k=>`<div class="tastingNote"><span>${esc(k)}</span><p>${esc(String(d[k]).startsWith('[WCMETA]')?'Legacy metadata (not a tasting note)':d[k])}</p></div>`).join('')}
-  ${wb(d)}<div class="meta">Tasting ID: ${esc(d['Tasting ID'])}</div></section>`;
+  <div class="tastingNote"><span>Collection bottle link</span><p>${(()=>{const bid=String(d['Bottle ID']||'').trim();const bottle=bid?state().bottles.find(b=>String(b['Bottle ID'])===bid):null;return bottle?'Confirmed bottle · '+esc(bid):bid?'Bottle reference not found · '+esc(bid):'Whisky identity only — no physical bottle confirmed'})()}</p></div>${d['Bottle ID']&&state().bottles.some(b=>String(b['Bottle ID'])===String(d['Bottle ID']))?'<button type="button" class="filterBtn" id="viewLinkedDramBottle">View linked bottle →</button>':''}${wb(d)}<div class="meta">Tasting ID: ${esc(d['Tasting ID'])}</div></section>`;
  }
  if(selectedSessionId){
   const sess=allSessions.get(String(selectedSessionId));if(!sess){selectedSessionId=null;return tastingsPage()}
@@ -459,6 +459,7 @@ function bind(){
  const cancelEdit=document.getElementById('cancelTastingEdit');if(cancelEdit)cancelEdit.onclick=()=>{if(addingDram){addingDram=false;render();return}tastingEdit=null;render()};
  const saveTastingBtn=document.getElementById('saveTastingEdit');if(saveTastingBtn)saveTastingBtn.onclick=saveTastingEdit;
  for(const id of ['deleteSession','deleteDram']){const el=document.getElementById(id);if(el)el.onclick=()=>toast('Deletion is not enabled until a safe backend delete action is available.')}
+ const linkedBottle=document.getElementById('viewLinkedDramBottle');if(linkedBottle)linkedBottle.onclick=()=>{const d=state().drams.find(x=>String(x['Tasting ID'])===String(selectedDramId));if(!d||!state().bottles.some(b=>String(b['Bottle ID'])===String(d['Bottle ID'])))return;selectedBottleId=String(d['Bottle ID']);bottleView='detail';tab='Collection';render()};
  const backDram=document.getElementById('backDram');if(backDram)backDram.onclick=()=>{selectedDramId=null;tastingEdit=null;render()};
  const backTastings=document.getElementById('backTastings');if(backTastings)backTastings.onclick=()=>{selectedSessionId=null;tastingEdit=null;render()};
  document.querySelectorAll('[data-session-id]').forEach(el=>el.onclick=()=>{selectedSessionId=el.dataset.sessionId;render();window.scrollTo(0,0)});

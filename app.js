@@ -79,9 +79,9 @@ function collection(){
    const w=wi.get(String(b['Whisky ID']))||{}, age=num(w['Age Years']||w['Age Statement']), abv=num(w['ABV %']), fill=num(b['Current Fill %']);
    if(q&&![b['Bottle ID'],w['Distillery'],w['Brand / Producer'],w['Expression'],w['Region'],w['Country'],w['Age Statement'],w['ABV %']].some(v=>String(v||'').toLowerCase().includes(q)))return false;
    if(f.distillery&&String(w['Distillery']||'')!==f.distillery)return false;
-   if(f.region&&String(w['Region']||'')!==f.region)return false;
-   if(f.country&&String(w['Country']||'')!==f.country)return false;
-   if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;
+   if(f.region&&(f.region==='Unknown'? !['','unknown','n/a','not known'].includes(String(w['Region']||'').trim().toLowerCase()) : String(w['Region']||'')!==f.region))return false;
+   if(f.country&&(f.country==='Unknown'? !['','unknown','n/a','not known'].includes(String(w['Country']||'').trim().toLowerCase()) : String(w['Country']||'')!==f.country))return false;
+   if(f.bottler&&(f.bottler==='Unknown'? !['','unknown','n/a','not known'].includes(String(w['Bottler']||'').trim().toLowerCase()) : String(w['Bottler']||'')!==f.bottler))return false;
    if(f.cask&&!String(w['Cask Type / Maturation']||'').toLowerCase().includes(f.cask.toLowerCase()))return false;
    if(f.peated&&peatClass(w['Peated'])!==f.peated)return false;
    if(f.age==='NAS'&&age!==null)return false;if(f.age==='0-9'&&(age===null||age>9))return false;if(f.age==='10-17'&&(age===null||age<10||age>17))return false;if(f.age==='18+'&&(age===null||age<18))return false;
@@ -381,12 +381,12 @@ function tastingsPage(){
   const f=dramFilters, all=s.drams, peat=v=>{const x=String(v??'').toLowerCase();return ['yes','true','peated','1'].includes(x)?'Peated':['no','false','unpeated','0'].includes(x)?'Unpeated':'Unknown'};
   const year=d=>{const v=String(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']||'');const m=v.match(/(?:19|20)\d{2}/);return m?m[0]:''};
   const vals=fn=>[...new Set(all.map(fn).map(v=>String(v??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const options=(arr,v)=>'<option value="">All</option>'+arr.map(x=>`<option value="${esc(x)}" ${x===v?'selected':''}>${esc(x)}</option>`).join('');
+  const options=(arr,v)=>'<option value="">All</option>'+['Unknown',...arr.filter(x=>x!=='Unknown')].map(x=>`<option value="${esc(x)}" ${x===v?'selected':''}>${esc(x)}</option>`).join('');
   const active=Object.values(f).filter(Boolean).length;
   const rows=[...all].sort((a,b)=>dateValue(b['Tasting Date']||allSessions.get(String(b['Session ID']))?.['Date'])-dateValue(a['Tasting Date']||allSessions.get(String(a['Session ID']))?.['Date'])).filter(d=>{
    const w=whisky(d),score=num(d['Score']),age=num(w['Age Years']);
    if(q&&![dramName(d),d['Tasting ID'],d['Bottle ID'],w['Bottler'],w['Region'],w['Cask Type / Maturation'],allSessions.get(String(d['Session ID']))?.['Session Name']].some(v=>String(v??'').toLowerCase().includes(q)))return false;
-   if(f.distillery&&distillery(d)!==f.distillery)return false;
+   if(f.distillery&&(f.distillery==='Unknown'? !['','unknown','n/a','not known'].includes(String(w['Distillery']??'').trim().toLowerCase()) : distillery(d)!==f.distillery))return false;
    if(f.region&&String(w['Region']||'')!==f.region)return false;
    if(f.country&&String(w['Country']||'')!==f.country)return false;
    if(f.bottler&&String(w['Bottler']||'')!==f.bottler)return false;

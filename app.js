@@ -549,10 +549,14 @@ async function createNewBottle(){
    if(!whiskyId)throw new Error('Whisky created but no ID returned. Refresh before retrying.');
   }
   const createdBottle=await WC2.api('CREATE_BOTTLE',{record:{...bottle,'Whisky ID':whiskyId,'Status':'Sealed','Current Fill %':100}});
-  await WC2.refresh();
+  if(createdBottle.success!==true||createdBottle.dryRun===true)throw new Error('Backend did not confirm bottle creation. Check Collection before retrying.');
   const id=createdBottle.record?.['Bottle ID'];
-  if(id){selectedBottleId=id;bottleView='detail';tab='Collection'}else{tab='Collection';selectedBottleId=null}
-  render();toast('Bottle created');
+  if(!id)throw new Error('Bottle request returned without an ID. Refresh Collection before retrying.');
+  await WC2.refresh();
+  const verified=state().bottles.find(b=>String(b['Bottle ID'])===String(id));
+  if(!verified){toast('Bottle was submitted but not verified after refresh. Check Collection before retrying.');return}
+  selectedBottleId=id;bottleView='detail';tab='Collection';
+  render();toast('Bottle created and verified');
  }catch(e){toast('Creation failed: '+e.message);btn.disabled=false;btn.textContent='Create Bottle'}
 }
 async function saveBottleChanges(){

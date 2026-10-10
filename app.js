@@ -562,6 +562,12 @@ async function createNewBottle(){
  }
  if(bottle['Status']==='Open'){toast('Create the bottle as Sealed, then use Open Bottle to record lifecycle history.');return}
  if(bottle['Purchase Price']!==undefined&&bottle['Purchase Price']<0){toast('Purchase price cannot be negative.');return}
+ if(addMode==='existing'){
+  const chosen=state().whiskies.find(w=>String(w['Whisky ID'])===String(whiskyId));
+  if(!chosen){toast('Selected whisky was not found in the current database. Refresh and select it again.');return}
+  const label=[chosen['Distillery']||chosen['Brand / Producer'],chosen['Expression'],chosen['Age Years']?chosen['Age Years']+'y':''].filter(Boolean).join(' · ');
+  if(!confirm('Add one sealed bottle of '+label+'?\\n\\nThis will create a new physical bottle record.'))return;
+ }
  if(addMode==='new'&&!confirm('Create a new whisky release and a bottle? This performs two separate database operations.'))return;
  btn.disabled=true;btn.textContent='Creating…';
  try{
@@ -577,6 +583,7 @@ async function createNewBottle(){
   await WC2.refresh();
   const verified=state().bottles.find(b=>String(b['Bottle ID'])===String(id));
   if(!verified){toast('Bottle was submitted but not verified after refresh. Check Collection before retrying.');return}
+  if(String(verified['Whisky ID'])!==String(whiskyId)||String(verified['Status']||'').toLowerCase()!=='sealed'){toast('Bottle exists but its whisky identity or status did not match the request. Review it before further changes.');selectedBottleId=id;bottleView='detail';tab='Collection';render();return}
   selectedBottleId=id;bottleView='detail';tab='Collection';
   render();toast('Bottle created and verified');
  }catch(e){toast('Creation failed: '+e.message);btn.disabled=false;btn.textContent='Create Bottle'}

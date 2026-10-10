@@ -208,16 +208,17 @@ function insightsPage(){
 }
 function competitionOverview(){
  const rounds=Array.isArray(state().competition)?state().competition:[];
- const sessions=new Map(state().sessions.map(s=>[String(s['Session ID']||''),s]));
- const groups=new Map();let unresolved=0;
- for(const r of rounds){
-  const id=String(r['Session ID']||'').trim();
-  if(!id||!sessions.has(id)){unresolved++;continue}
-  groups.set(id,(groups.get(id)||0)+1);
- }
- const entries=[...groups].sort((a,b)=>dateValue(sessions.get(b[0])['Date'])-dateValue(sessions.get(a[0])['Date']));
- const linked=entries.map(([id,count])=>{const s=sessions.get(id);return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0"><div><b>'+esc(s['Session Name']||'Tasting session')+'</b><div class="meta">'+esc(dateInput(s['Date'])||'Date unknown')+' · '+count+' competition round'+(count===1?'':'s')+'</div></div><button type="button" class="filterBtn" data-live-session="'+esc(id)+'">Open session →</button></div>'}).join('');
- return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Historical, read-only overview. Answers and whisky identities are not shown here. This is not a secure blind interface: the current API still exposes identities to the browser.</div><div class="detailList"><div><span>Recorded rounds</span><b>'+rounds.length+'</b></div><div><span>Linked sessions</span><b>'+groups.size+'</b></div><div><span>Unlinked / unresolved rounds</span><b>'+unresolved+'</b></div></div>'+(linked||'<div class="meta">No rounds linked by Session ID. Historical records are preserved.</div>')+'<div class="meta">Secure reveal and scoring controls remain disabled pending backend protection.</div></section>';
+ const ordered=[...rounds].sort((a,b)=>dateValue(b['Date'])-dateValue(a['Date'])||Number(b['Round']||0)-Number(a['Round']||0));
+ const blind=rounds.filter(r=>String(r['Status']||'').toLowerCase()==='blind').length;
+ const revealed=rounds.filter(r=>String(r['Status']||'').toLowerCase()==='revealed').length;
+ const unresolved=rounds.filter(r=>String(r['Status']||'').toLowerCase()==='revealed'&&(!String(r['Whisky ID']||'').trim()||!String(r['Tasting ID']||'').trim())).length;
+ const rows=ordered.slice(0,15).map(r=>{
+  const isRevealed=String(r['Status']||'').toLowerCase()==='revealed';
+  const score=isRevealed&&r['Competition Score']!==''&&r['Competition Score']!=null?' · '+esc(r['Competition Score'])+' pts':'';
+  const place=isRevealed&&r['Place After Round']!==''&&r['Place After Round']!=null?' · Place '+esc(r['Place After Round']):'';
+  return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:12px 0"><div><b>Round '+esc(r['Round']||r['Round ID']||'—')+'</b><div class="meta">'+esc(dateInput(r['Date'])||'Date unknown')+score+place+'</div></div><span class="meta">'+(isRevealed?'Revealed':'Blind / unknown')+'</span></div>';
+ }).join('');
+ return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Competitions are separate from tasting sessions. Read-only history; blind answers and identities are never shown in this overview. The API is not yet blind-safe.</div><div class="detailList"><div><span>Recorded rounds</span><b>'+rounds.length+'</b></div><div><span>Blind rounds</span><b>'+blind+'</b></div><div><span>Revealed rounds</span><b>'+revealed+'</b></div><div><span>Revealed with missing links</span><b>'+unresolved+'</b></div></div>'+(rows||'<div class="meta">No competition rounds recorded.</div>')+(ordered.length>15?'<div class="meta">Showing the 15 most recent rounds.</div>':'')+'<div class="meta">Editing, scoring and reveal controls remain disabled until server-side access protections are deployed.</div></section>';
 }
 function livePage(){
  const s=state(),bySession=new Map();

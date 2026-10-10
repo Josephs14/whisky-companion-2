@@ -512,8 +512,14 @@ function bind(){
     const saved=await WC2.api(action,{...payload,dryRun:false});
     if(saved.success!==true||saved.dryRun===true)throw Error('Backend did not confirm a completed write');
     await WC2.refresh();
+    const updated=state().bottles.find(x=>String(x['Bottle ID'])===String(bottle['Bottle ID']));
+    if(!updated)throw Error('Bottle not found after refresh; check collection before retrying.');
+    const newStatus=String(updated['Status']||'').trim().toLowerCase();
+    const newFill=num(updated['Current Fill %']);
+    const expected=action==='OPEN_BOTTLE'?newStatus==='open':action==='FINISH_BOTTLE'?newStatus==='finished':action==='CHANGE_FILL'&&newStatus==='open'&&newFill!==null&&Math.abs(newFill-Number(extra.fillPercent))<0.001;
+    if(!expected)throw Error('Write acknowledged, but the expected bottle status or fill was not verified. Do not retry before checking Bottle History.');
     render();
-    alert('Bottle updated successfully.\\n'+summary+'\\n\\nYou can review the change in Bottle History.');
+    alert('Bottle updated and verified.\\n'+summary+'\\n\\nYou can review the change in Bottle History.');
   }catch(e){alert('Bottle operation was not confirmed.\\n'+String(e.message||e)+'\\n\\nRefresh the collection to check its current status before retrying.')}
  };
  const openManaged=document.getElementById('openManagedBottle');if(openManaged)openManaged.onclick=()=>lifecycleAction('OPEN_BOTTLE');

@@ -37,8 +37,8 @@
     return {
       whiskies: rows(data.whiskies),
       bottles: rows(data.bottles),
-      sessions: rows(data.sessions),
-      drams: rows(data.drams),
+      sessions: rows(data.sessions).filter(row => !String(row['Deleted At'] || '').trim()),
+      drams: rows(data.drams).filter(row => !String(row['Deleted At'] || '').trim()),
       competition: rows(data.competition),
       bottleLifecycle: rows(data.bottleLifecycle),
       fillHistory: rows(data.fillHistory),

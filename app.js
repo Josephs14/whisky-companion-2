@@ -613,7 +613,26 @@ function bind(){
  document.querySelectorAll('[data-other-bottle]').forEach(el=>el.onclick=()=>{selectedBottleId=el.dataset.otherBottle;bottleView='detail';render();window.scrollTo(0,0)});
  const viewBottleTastings=document.getElementById('viewBottleTastings');if(viewBottleTastings)viewBottleTastings.onclick=()=>{bottleView='history';historyIncludeSameWhisky=false;render();window.scrollTo(0,0)};
  const historyBottle=document.getElementById('historyBottle');if(historyBottle)historyBottle.onclick=()=>{bottleView='history';render()};
- const delBottle=document.getElementById('deleteBottle');if(delBottle)delBottle.onclick=()=>{if(confirm('Delete is not enabled yet because the API has no controlled DELETE_BOTTLE operation. No data has been changed.')){}};
+ const delBottle=document.getElementById('deleteBottle');if(delBottle)delBottle.onclick=async()=>{
+  const bottleId=String(selectedBottleId||'').trim();
+  if(!bottleId){toast('No bottle selected');return}
+  delBottle.disabled=true;
+  try{
+    const preview=await WC2.api('DELETE_BOTTLE',{bottleId,dryRun:true});
+    if(preview.success!==true||preview.dryRun!==true||String(preview.bottleId)!==bottleId)throw new Error('Deletion safety check was not confirmed');
+    const label=String(preview.record?.['Notes']||'').trim();
+    if(!confirm('Archive bottle '+bottleId+'?\\n\\n'+(label?'Notes: '+label+'\\n\\n':'')+'It will disappear from the collection but remain recoverable in Google Sheets.'))return;
+    const typed=prompt('To confirm, type the exact Bottle ID: '+bottleId,'');
+    if(typed===null)return;
+    if(String(typed).trim()!==bottleId){toast('Bottle ID did not match. Nothing deleted.');return}
+    const result=await WC2.api('DELETE_BOTTLE',{bottleId,confirmBottleId:bottleId,dryRun:false});
+    if(result.success!==true||result.dryRun!==false||String(result.bottleId)!==bottleId||!result.deletedAt)throw new Error('Backend did not confirm archival. Refresh and check before retrying.');
+    await WC2.refresh();
+    if(state().bottles.some(b=>String(b['Bottle ID'])===bottleId)){toast('Archived, but bottle still appears after refresh. Check deployment.');return}
+    selectedBottleId=null;bottleView='detail';render();toast('Bottle '+bottleId+' archived');
+  }catch(e){toast('Delete failed: '+e.message)}
+  finally{if(document.contains(delBottle))delBottle.disabled=false}
+ };
  document.querySelectorAll('[data-edit-section]').forEach(el=>el.onclick=()=>{editSection=el.dataset.editSection;render()});
  const saveEdit=document.getElementById('saveBottleEdit');if(saveEdit)saveEdit.onclick=saveBottleChanges;
  const saveTaste=document.getElementById('saveBottleTaste');if(saveTaste)saveTaste.onclick=saveBottleTasting;

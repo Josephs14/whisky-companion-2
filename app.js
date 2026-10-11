@@ -540,7 +540,31 @@ function bind(){
  };
  const cancelEdit=document.getElementById('cancelTastingEdit');if(cancelEdit)cancelEdit.onclick=()=>{if(addingDram){addingDram=false;render();return}tastingEdit=null;render()};
  const saveTastingBtn=document.getElementById('saveTastingEdit');if(saveTastingBtn)saveTastingBtn.onclick=saveTastingEdit;
- for(const id of ['deleteSession','deleteDram']){const el=document.getElementById(id);if(el)el.onclick=()=>toast('Deletion is not enabled until a safe backend delete action is available.')}
+ for(const [button,action,idField,confirmField,recordField] of [['deleteSession','DELETE_SESSION','sessionId','confirmSessionId','sessions'],['deleteDram','DELETE_DRAM','tastingId','confirmTastingId','drams']]){
+  const el=document.getElementById(button);if(!el)continue;
+  el.onclick=async()=>{
+   const id=String(button==='deleteSession'?selectedSessionId:selectedDramId||'').trim();
+   if(!id)return;
+   el.disabled=true;
+   try{
+    const preview=await WC2.api(action,{[idField]:id,dryRun:true});
+    if(preview.success!==true||preview.dryRun!==true||String(preview[idField])!==id)throw Error('Safety check failed');
+    if(button==='deleteSession'&&Number(preview.linkedDramCount||0)>0)throw Error('Archive linked drams first');
+    if(!confirm('Archive '+id+'? The record will remain recoverable in Google Sheets.'))return;
+    const typed=prompt('Enter the exact ID to confirm: '+id,'');
+    if(typed===null)return;
+    if(typed.trim()!==id){toast('ID mismatch. No changes made.');return}
+    const result=await WC2.api(action,{[idField]:id,[confirmField]:id,dryRun:false});
+    if(result.success!==true||result.dryRun!==false||String(result[idField])!==id||!result.deletedAt)throw Error('Archival not confirmed');
+    await WC2.refresh();
+    const key=button==='deleteSession'?'Session ID':'Tasting ID';
+    if(state()[recordField].some(x=>String(x[key])===id))throw Error('Archived record still visible');
+    if(button==='deleteSession')selectedSessionId=null;else selectedDramId=null;
+    tastingEdit=null;render();toast(id+' archived');
+   }catch(e){toast('Archive failed: '+e.message)}
+   finally{if(document.contains(el))el.disabled=false}
+  };
+ }
  document.querySelectorAll('[data-related-dram-bottle]').forEach(el=>el.onclick=()=>{selectedBottleId=el.dataset.relatedDramBottle;bottleView='detail';tab='Collection';render();window.scrollTo(0,0)});
  const linkedBottle=document.getElementById('viewLinkedDramBottle');if(linkedBottle)linkedBottle.onclick=()=>{const d=state().drams.find(x=>String(x['Tasting ID'])===String(selectedDramId));if(!d||!state().bottles.some(b=>String(b['Bottle ID'])===String(d['Bottle ID'])))return;selectedBottleId=String(d['Bottle ID']);bottleView='detail';tab='Collection';render()};
  const addNextDram=document.getElementById('addNextDram');if(addNextDram)addNextDram.onclick=()=>{const current=state().drams.find(d=>String(d['Tasting ID'])===String(selectedDramId));if(!current)return;const sessionId=String(current['Session ID']||'');selectedSessionId=sessionId||null;selectedDramId=null;addingDram=true;dramDescriptorDraft={Nose:[],Palate:[],Finish:[]};render();window.scrollTo(0,0);const number=document.getElementById('newDramNumber');if(number&&sessionId){const existing=state().drams.filter(d=>String(d['Session ID'])===sessionId).map(d=>num(d['Dram #'])).filter(n=>n!==null);number.value=String(Math.max(0,...existing)+1)}};

@@ -621,7 +621,7 @@ function bind(){
     const preview=await WC2.api('DELETE_BOTTLE',{bottleId,dryRun:true});
     if(preview.success!==true||preview.dryRun!==true||String(preview.bottleId)!==bottleId)throw new Error('Deletion safety check was not confirmed');
     const label=String(preview.record?.['Notes']||'').trim();
-    if(!confirm('Archive bottle '+bottleId+'?\\n\\n'+(label?'Notes: '+label+'\\n\\n':'')+'It will disappear from the collection but remain recoverable in Google Sheets.'))return;
+    if(!confirm('Archive bottle '+bottleId+'?\n\n'+(label?'Notes: '+label+'\n\n':'')+'It will disappear from the collection but remain recoverable in Google Sheets.'))return;
     const typed=prompt('To confirm, type the exact Bottle ID: '+bottleId,'');
     if(typed===null)return;
     if(String(typed).trim()!==bottleId){toast('Bottle ID did not match. Nothing deleted.');return}

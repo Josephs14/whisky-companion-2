@@ -83,7 +83,7 @@
 
     const json = await response.json();
     if (!response.ok || json.success === false || json.ok === false) {
-      throw new Error([json.error || ('HTTP ' + response.status),json.action ? ('Server action: ' + json.action) : ('Requested action: ' + action),json.message || '',json.details || json.detail || json.reason || json.stack || ''].filter(Boolean).map(v=>typeof v==='string'?v:JSON.stringify(v)).join(' — '));
+      throw new Error([json.error || ('HTTP ' + response.status),json.message || '',json.details || json.detail || json.reason || json.stack || ''].filter(Boolean).map(v=>typeof v==='string'?v:JSON.stringify(v)).join(' — '));
     }
     return json;
   }

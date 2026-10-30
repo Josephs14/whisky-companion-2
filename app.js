@@ -146,7 +146,7 @@ function bottleDetail(b,w){
  }
  if(bottleView==='edit'){
   const bottleFields=['Bottle Number','Collection Role','Acquisition Date','Acquisition Date Precision','Acquisition Type','Shop / Source','Purchase Price','Currency','Status','Open Date','Open Date Precision','Finished Date','Finished Date Precision','Current Fill %','Replace When Empty','Notes','Verification Status'];
-  const whiskyFields=['Whisky Type','Distillery','Bottler','Brand / Producer','Expression','Series / Collection','Release Type','Region','Bottling Year','Age','Age','ABV %','Bottle Size ml','Cask Type / Maturation','Cask Number','Outturn','Peated','Whiskybase ID','Whiskybase URL','Verification Status','Last Verified'];
+  const whiskyFields=['Whisky Type','Distillery','Bottler','Brand / Producer','Expression','Series / Collection','Release Type','Region','Bottling Year','Age','ABV %','Bottle Size ml','Cask Type / Maturation','Cask Number','Outturn','Peated','Whiskybase ID','Whiskybase URL','Verification Status','Last Verified'];
   const fields=editSection==='bottle'?bottleFields:whiskyFields, source=editSection==='bottle'?b:w;
   const lifecycleReadOnly=new Set(['Status','Open Date','Open Date Precision','Finished Date','Finished Date Precision','Current Fill %']);
   const form=fields.map(key=>{
@@ -154,9 +154,9 @@ function bottleDetail(b,w){
    const val=dateField?dateInput(source[key]):(source[key]??''),label=esc(key),inputId=esc(key);
    if(editSection==='bottle'&&key==='Status')return '<label>Bottle Status<select id="editBottleStatus"><option value="Sealed" '+(String(val).toLowerCase()==='sealed'?'selected':'')+'>Sealed</option><option value="Open" '+(String(val).toLowerCase()==='open'?'selected':'')+'>Open</option><option value="Finished" '+(String(val).toLowerCase()==='finished'?'selected':'')+'>Finished</option></select><span class="meta">Status changes use the validated lifecycle workflow. Supported: Sealed → Open and Open → Finished.</span></label>'; 
    if(editSection==='bottle'&&lifecycleReadOnly.has(key))return '<label>'+label+'<input type="text" value="'+esc(val)+'" disabled><span class="meta">Managed through bottle lifecycle actions.</span></label>';
-   if(fieldChoices[key]||key==='Status')return `<label>${label}${fieldSelect(key,editSection,val,`data-edit-field="${inputId}" data-edit-entity="${editSection}" ${key==='Status'?'disabled':''}`)}</label>`;
+   if((fieldChoices[key]&&key!=='Age')||key==='Status')return `<label>${label}${fieldSelect(key,editSection,val,`data-edit-field="${inputId}" data-edit-entity="${editSection}" ${key==='Status'?'disabled':''}`)}</label>`;
    if(key==='Notes')return `<label>${label}<textarea data-edit-field="${inputId}" data-edit-entity="bottle" rows="4">${esc(val)}</textarea></label>`;
-   const type=dateField?'date':(['Purchase Price','Current Fill %','Age','ABV %','Bottle Size ml','Bottling Year','Outturn'].includes(key)?'number':'text');
+   const type=dateField?'date':(['Purchase Price','Current Fill %','ABV %','Bottle Size ml','Bottling Year','Outturn'].includes(key)?'number':'text');
    const known=suggestionFields.has(key)?fieldSuggestions(key,editSection):[],listId='edit-list-'+key.replace(/[^a-z0-9]/gi,'-');
    return `<label>${label}<input type="${type}" data-edit-field="${inputId}" data-edit-entity="${editSection}" value="${esc(val)}" ${known.length?`list="${listId}"`:``}>${known.length?`<datalist id="${listId}">${known.map(v=>`<option value="${esc(v)}"></option>`).join("")}</datalist>`:``}</label>`;
   }).join('');

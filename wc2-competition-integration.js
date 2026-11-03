@@ -43,12 +43,14 @@
    '<button type="button" class="filterBtn" data-wc2-toggle="wc2CompEdit" aria-expanded="false">Edit blind round</button><form id="wc2CompEdit" hidden><h4>Edit blind guesses</h4><label>Round<select name="roundId" required>'+roundOptions(blind)+'</select></label>'+guesses()+'<button type="submit" class="primary">Update guesses</button></form>'+
    '<button type="button" class="filterBtn" data-wc2-toggle="wc2CompReveal" aria-expanded="false">Reveal round</button><form id="wc2CompReveal" hidden><h4>Reveal round</h4><label>Round<select name="roundId" required>'+roundOptions(blind)+'</select></label>'+
    '<label>Search existing whisky<input name="whiskySearch" type="search" list="wc2WhiskyChoices" placeholder="Optional — select a whisky if available" autocomplete="off"><datalist id="wc2WhiskyChoices">'+whiskies.map(w=>opt(whiskyLabel(w),whiskyLabel(w))).join('')+'</datalist></label>'+
-   field('Actual Region')+field('Actual Distillery')+field('Actual Age','','number')+field('Actual ABV','','number')+
+   field('Actual Region')+field('Actual Distillery')+field('Actual Age','','text')+field('Actual ABV','','number')+
+   '<fieldset style="margin:12px 0;padding:12px;border:1px solid var(--border,#ddd);border-radius:10px"><legend>Whisky identification</legend><label><input type="radio" name="whiskyMode" value="existing" checked> Select existing whisky</label><label><input type="radio" name="whiskyMode" value="new"> Create new whisky</label><div data-wc2-new-whisky hidden>'+field('Expression')+field('Whiskybase URL')+'</div></fieldset>'+
    '<button type="submit" class="primary">Preview and reveal</button></form>'+
-   '<p class="meta">Whisky selection is optional; enter the actual Region, Distillery, Age and ABV to reveal.</p></section>'+ 
+   '<p class="meta">Select an existing whisky or create a new one. New records require an expression.</p></section>'+ 
    '<section class="card setup" style="margin-top:20px"><h3>Competition performance</h3><p class="meta">Your results across revealed competition rounds</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin:12px 0 18px">'+kpi('Total rounds',rounds.length,'🏁')+kpi('Revealed',revealed.length,'✓')+kpi('Blind',blind.length,'◈')+kpi('Average score',avg,'◎')+kpi('Best score',best,'★')+'</div>'+ 
    '<h4 style="margin-top:14px">Parameter analysis</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:10px;margin:12px 0 16px">'+parameterCards+'</div>'+ 
    '<p class="meta">Age deviation in years; ABV in percentage points. Region and Distillery show mismatch rate. Scores are shown when recorded. Revealed rounds only.</p></section>'+ 
+   '<section class="card setup" style="margin-top:20px"><h3>Link revealed round</h3><p class="meta">For earlier reveals without a Whisky ID (including Round 35). Scores remain unchanged.</p><form id="wc2CompLink"><label>Unlinked revealed round<select name="roundId" required><option value="">Select round</option>'+revealed.filter(r=>!String(r['Whisky ID']||'').trim()).map(r=>opt(r['Round ID'],r['Round ID']+' · '+day(r.Date))).join('')+'</select></label><label><input type="radio" name="whiskyMode" value="existing" checked> Select existing whisky</label><label><input type="radio" name="whiskyMode" value="new"> Create new whisky</label><label data-wc2-existing-whisky>Search existing whisky<input name="whiskySearch" type="search" list="wc2WhiskyChoices" autocomplete="off"></label><div data-wc2-new-whisky hidden>'+field('Distillery')+field('Expression')+field('Region')+field('Age')+field('ABV %','','number')+field('Whiskybase URL')+'</div><button type="submit" class="primary">Preview and link whisky</button></form></section>'+ 
    '<section class="card setup" style="margin-top:20px"><h3>Competition rounds</h3><p class="meta">'+rounds.length+' recorded rounds</p><div>'+ (roundCards||'<p class="meta">No rounds recorded.</p>')+'</div>'+ 
    '</section></div>';
  }
@@ -64,18 +66,31 @@
   root.querySelectorAll('[data-wc2-toggle]').forEach(button=>{button.onclick=()=>{const target=root.querySelector('#'+button.dataset.wc2Toggle);const opening=target.hidden;root.querySelectorAll('#wc2CompCreate,#wc2CompEdit,#wc2CompReveal').forEach(form=>form.hidden=true);root.querySelectorAll('[data-wc2-toggle]').forEach(b=>b.setAttribute('aria-expanded','false'));target.hidden=!opening;button.setAttribute('aria-expanded',String(opening));};});
   if(edit){const select=edit.elements.namedItem('roundId');const fill=()=>{const round=(window.WC2.getState().competition||[]).find(r=>String(r['Round ID'])===select.value);for(const k of ['Guess Region','Guess Distillery','Guess Age','Guess ABV'])edit.elements.namedItem(k).value=round?.[k]??'';};select.addEventListener('change',fill);root.querySelectorAll('[data-wc2-edit-round]').forEach(b=>b.onclick=()=>{select.value=b.dataset.wc2EditRound;root.querySelectorAll('#wc2CompCreate,#wc2CompEdit,#wc2CompReveal').forEach(f=>f.hidden=true);edit.hidden=false;root.querySelectorAll('[data-wc2-toggle]').forEach(x=>x.setAttribute('aria-expanded',String(x.dataset.wc2Toggle==='wc2CompEdit')));fill();edit.scrollIntoView({behavior:'smooth',block:'start'});});}
   if(reveal){const select=reveal.elements.namedItem('roundId');root.querySelectorAll('[data-wc2-reveal-round]').forEach(b=>b.onclick=()=>{select.value=b.dataset.wc2RevealRound;root.querySelectorAll('#wc2CompCreate,#wc2CompEdit,#wc2CompReveal').forEach(f=>f.hidden=true);reveal.hidden=false;root.querySelectorAll('[data-wc2-toggle]').forEach(x=>x.setAttribute('aria-expanded',String(x.dataset.wc2Toggle==='wc2CompReveal')));reveal.scrollIntoView({behavior:'smooth',block:'start'});});}
+  const link=root.querySelector('#wc2CompLink');
+  [reveal,link].filter(Boolean).forEach(form=>{
+    const sync=()=>{const isNew=form.querySelector('[name="whiskyMode"]:checked')?.value==='new';form.querySelector('[data-wc2-new-whisky]').hidden=!isNew;const existing=form.querySelector('[data-wc2-existing-whisky]')||form.querySelector('input[name="whiskySearch"]')?.closest('label');if(existing)existing.hidden=isNew;form.querySelectorAll('[data-wc2-new-whisky] input').forEach(el=>el.required=isNew&&['Expression','Distillery','Age','ABV %'].includes(el.name));};
+    form.querySelectorAll('[name="whiskyMode"]').forEach(x=>x.addEventListener('change',sync));sync();
+  });
+  const identify=(form,current,actual)=>{const isNew=form.querySelector('[name="whiskyMode"]:checked')?.value==='new';if(!isNew){const whisky=(current.whiskies||[]).find(w=>whiskyLabel(w)===val(form,'whiskySearch'));if(!whisky)throw Error('Select an existing whisky from the list');return {whiskyId:String(whisky['Whisky ID'])};}
+    const record={Distillery:actual?.['Actual Distillery']||val(form,'Distillery'),Expression:val(form,'Expression'),Region:actual?.['Actual Region']||val(form,'Region'),Age:actual?.['Actual Age']||val(form,'Age'),'ABV %':actual?.['Actual ABV']||Number(val(form,'ABV %'))};
+    const url=val(form,'Whiskybase URL');if(url){let u;try{u=new URL(url)}catch(e){throw Error('Invalid Whiskybase URL')}const m=u.pathname.match(/^\\/whiskies\\/whisky\\/(\\d+)(?:\\/|$)/);if(!/(^|\\.)whiskybase\\.com$/i.test(u.hostname)||!m)throw Error('Enter a valid Whiskybase whisky URL');record['Whiskybase URL']=url;record['Whiskybase ID']=m[1];}
+    return {newWhisky:record};
+  };
+  if(link)link.onsubmit=e=>{e.preventDefault();submit(link,notify,async()=>{const current=window.WC2.getState(),roundId=val(link,'roundId'),r=(current.competition||[]).find(x=>String(x['Round ID'])===roundId);if(!r)throw Error('Select a revealed round');const chosen=identify(link,current);const payload={roundId,...chosen};await request('LINK_COMPETITION_WHISKY',{...payload,dryRun:true});if(!confirm('Link whisky to '+roundId+'? Competition points will not change.'))return;await request('LINK_COMPETITION_WHISKY',{...payload,dryRun:false});});};
   if(create)create.onsubmit=e=>{e.preventDefault();submit(create,notify,async()=>{const record={Date:val(create,'Date'),...readGuesses(create)};await request('CREATE_COMPETITION_ROUND',{record,dryRun:true});await request('CREATE_COMPETITION_ROUND',{record,dryRun:false});});};
   if(edit)edit.onsubmit=e=>{e.preventDefault();submit(edit,notify,async()=>{const roundId=val(edit,'roundId'),changes=readGuesses(edit);await request('UPDATE_COMPETITION_ROUND',{roundId,changes,dryRun:true});await request('UPDATE_COMPETITION_ROUND',{roundId,changes,dryRun:false});});};
   if(reveal)reveal.onsubmit=e=>{e.preventDefault();submit(reveal,notify,async()=>{
-    const roundId=val(reveal,'roundId'),current=window.WC2.getState(),selectedWhisky=(current.whiskies||[]).find(w=>whiskyLabel(w)===val(reveal,'whiskySearch'));
-    if(val(reveal,'whiskySearch')&&!selectedWhisky)throw Error('Select a listed whisky or clear the optional whisky field');
+    const roundId=val(reveal,'roundId'),current=window.WC2.getState();
     const round=(current.competition||[]).find(r=>String(r['Round ID'])===roundId);
     if(!round||String(round.Status).toLowerCase()!=='blind')throw Error('Choose a blind round to reveal');
-    const actual={'Actual Region':val(reveal,'Actual Region'),'Actual Distillery':val(reveal,'Actual Distillery'),'Actual Expression':String(selectedWhisky?.Expression||''),'Actual Age':val(reveal,'Actual Age'),'Actual ABV':Number(val(reveal,'Actual ABV')),'Whisky ID':String(selectedWhisky?.['Whisky ID']||'')};
-    const preview=await request('REVEAL_COMPETITION_ROUND',{roundId,actual,dryRun:true});
-    const score=preview?.proposedRecord?.['Competition Score']??preview?.record?.['Competition Score']??'preview available';
+    const actual={'Actual Region':val(reveal,'Actual Region'),'Actual Distillery':val(reveal,'Actual Distillery'),'Actual Age':val(reveal,'Actual Age'),'Actual ABV':Number(val(reveal,'Actual ABV'))};
+    const choice=identify(reveal,current,actual);
+    if(choice.whiskyId){actual['Whisky ID']=choice.whiskyId;actual['Actual Expression']=(current.whiskies||[]).find(w=>String(w['Whisky ID'])===choice.whiskyId)?.Expression||'';}
+    const payload={roundId,actual,...(choice.newWhisky?{newWhisky:choice.newWhisky}:{})};
+    const preview=await request('REVEAL_COMPETITION_ROUND',{...payload,dryRun:true});
+    const score=preview?.proposedRecord?.['Competition Score']??'preview available';
     if(!confirm('Reveal '+roundId+'?\\nScore: '+score+'\\nThis action is final.'))return;
-    await request('REVEAL_COMPETITION_ROUND',{roundId,actual,dryRun:false});
+    await request('REVEAL_COMPETITION_ROUND',{...payload,dryRun:false});
   });};
  }
  window.WC2CompetitionIntegration=Object.freeze({render,bind});

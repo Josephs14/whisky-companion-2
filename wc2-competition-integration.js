@@ -20,11 +20,10 @@
    '<form id="wc2CompEdit"><h4>Edit blind guesses</h4><label>Round<select name="roundId" required>'+roundOptions(blind)+'</select></label>'+guesses()+'<button type="submit" class="primary">Update guesses</button></form>'+
    '<form id="wc2CompReveal"><h4>Reveal round</h4><label>Round<select name="roundId" required>'+roundOptions(blind)+'</select></label>'+
    '<label>Search existing whisky<input name="whiskySearch" type="search" list="wc2WhiskyChoices" placeholder="Type distillery, expression or ID" required autocomplete="off"><datalist id="wc2WhiskyChoices">'+whiskies.map(w=>opt(whiskyLabel(w),whiskyLabel(w))).join('')+'</datalist></label>'+
-   '<label>Competition dram<select name="tastingId" required><option value="">Select dram</option>'+drams.map(d=>opt(d['Tasting ID'],d['Tasting ID']+' · '+day(d['Tasting Date'])+' · '+d['Whisky ID'])).join('')+'</select></label>'+
    field('Actual Region')+field('Actual Distillery')+field('Actual Expression')+field('Actual Age','','number')+field('Actual ABV','','number')+
    '<button type="submit" class="primary">Preview and reveal</button></form>'+
-   '<h4>Recent rounds</h4>'+[...rounds].sort((a,b)=>Number(b.Round)-Number(a.Round)).slice(0,12).map(r=>'<div class="detailList"><div><span>'+esc(r['Round ID'])+' · '+esc(day(r.Date))+' · '+esc(r.Status)+'</span><b>'+esc(String(r.Status).toLowerCase()==='revealed'?(r['Competition Score']??'—')+' pts':'Blind')+'</b></div>'+(String(r.Status).toLowerCase()==='blind'?'<button type="button" class="filterBtn" data-wc2-edit-round="'+esc(r['Round ID'])+'">Edit round</button>':'')+'</div>').join('')+
-   '<p class="meta">Reveal requires an existing Whisky and matching Competition Dram dated the same day as the round.</p></section>';
+   '<h4>Recent rounds</h4>'+[...rounds].sort((a,b)=>Number(b.Round)-Number(a.Round)).slice(0,12).map(r=>'<div class="detailList"><div><span>'+esc(r['Round ID'])+' · '+esc(day(r.Date))+' · '+esc(r.Status)+'</span><b>'+esc(String(r.Status).toLowerCase()==='revealed'?(r['Competition Score']??'—')+' pts':'Blind')+'</b></div>'+(String(r.Status).toLowerCase()==='blind'?'<button type="button" class="filterBtn" data-wc2-edit-round="'+esc(r['Round ID'])+'">Edit round</button><button type="button" class="filterBtn" data-wc2-reveal-round="'+esc(r['Round ID'])+'">Reveal round</button>':'')+'</div>').join('')+
+   '<p class="meta">Reveal uses an existing whisky; no Competition Dram is required.</p></section>';
  }
  async function request(action,payload){const r=await window.WC2.api(action,payload);return r;}
  async function submit(form,notify,work){
@@ -36,13 +35,15 @@
  function bind(root,notify){
   const create=root.querySelector('#wc2CompCreate'),edit=root.querySelector('#wc2CompEdit'),reveal=root.querySelector('#wc2CompReveal');
   if(edit){const select=edit.elements.namedItem('roundId');const fill=()=>{const round=(window.WC2.getState().competition||[]).find(r=>String(r['Round ID'])===select.value);for(const k of ['Guess Region','Guess Distillery','Guess Age','Guess ABV'])edit.elements.namedItem(k).value=round?.[k]??'';};select.addEventListener('change',fill);root.querySelectorAll('[data-wc2-edit-round]').forEach(b=>b.onclick=()=>{select.value=b.dataset.wc2EditRound;fill();edit.scrollIntoView({behavior:'smooth',block:'start'});});}
+  if(reveal){const select=reveal.elements.namedItem('roundId');root.querySelectorAll('[data-wc2-reveal-round]').forEach(b=>b.onclick=()=>{select.value=b.dataset.wc2RevealRound;reveal.scrollIntoView({behavior:'smooth',block:'start'});});}
   if(create)create.onsubmit=e=>{e.preventDefault();submit(create,notify,async()=>{const record={Date:val(create,'Date'),...readGuesses(create)};await request('CREATE_COMPETITION_ROUND',{record,dryRun:true});await request('CREATE_COMPETITION_ROUND',{record,dryRun:false});});};
   if(edit)edit.onsubmit=e=>{e.preventDefault();submit(edit,notify,async()=>{const roundId=val(edit,'roundId'),changes=readGuesses(edit);await request('UPDATE_COMPETITION_ROUND',{roundId,changes,dryRun:true});await request('UPDATE_COMPETITION_ROUND',{roundId,changes,dryRun:false});});};
   if(reveal)reveal.onsubmit=e=>{e.preventDefault();submit(reveal,notify,async()=>{
-    const roundId=val(reveal,'roundId'),s=window.WC2.getState(),selectedWhisky=(s.whiskies||[]).find(w=>whiskyLabel(w)===val(reveal,'whiskySearch'));if(!selectedWhisky)throw Error('Choose a whisky from the search suggestions');const whiskyId=String(selectedWhisky['Whisky ID']),tastingId=val(reveal,'tastingId');
-    const round=s.competition.find(r=>r['Round ID']===roundId),dram=s.drams.find(d=>d['Tasting ID']===tastingId);
-    if(!round||!dram||day(round.Date)!==day(dram['Tasting Date'])||String(dram['Whisky ID'])!==whiskyId||dram['Tasting Context']!=='Competition')throw Error('Select a Competition Dram matching the whisky and round date');
-    const actual={'Actual Region':val(reveal,'Actual Region'),'Actual Distillery':val(reveal,'Actual Distillery'),'Actual Expression':val(reveal,'Actual Expression'),'Actual Age':val(reveal,'Actual Age'),'Actual ABV':Number(val(reveal,'Actual ABV')),'Whisky ID':whiskyId,'Tasting ID':tastingId};
+    const roundId=val(reveal,'roundId'),current=window.WC2.getState(),selectedWhisky=(current.whiskies||[]).find(w=>whiskyLabel(w)===val(reveal,'whiskySearch'));
+    if(!selectedWhisky)throw Error('Choose a whisky from the search suggestions');
+    const round=(current.competition||[]).find(r=>String(r['Round ID'])===roundId);
+    if(!round||String(round.Status).toLowerCase()!=='blind')throw Error('Choose a blind round to reveal');
+    const actual={'Actual Region':val(reveal,'Actual Region'),'Actual Distillery':val(reveal,'Actual Distillery'),'Actual Expression':val(reveal,'Actual Expression'),'Actual Age':val(reveal,'Actual Age'),'Actual ABV':Number(val(reveal,'Actual ABV')),'Whisky ID':String(selectedWhisky['Whisky ID'])};
     const preview=await request('REVEAL_COMPETITION_ROUND',{roundId,actual,dryRun:true});
     const score=preview?.proposedRecord?.['Competition Score']??preview?.record?.['Competition Score']??'preview available';
     if(!confirm('Reveal '+roundId+'?\\nScore: '+score+'\\nThis action is final.'))return;

@@ -221,6 +221,9 @@ function competitionOverview(){
  }).join('');
  return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Competitions are separate from tasting sessions. Read-only history; blind answers and identities are never shown in this overview. The API is not yet blind-safe.</div><div class="detailList"><div><span>Recorded rounds</span><b>'+rounds.length+'</b></div><div><span>Blind rounds</span><b>'+blind+'</b></div><div><span>Revealed rounds</span><b>'+revealed+'</b></div><div><span>Revealed with missing links</span><b>'+unresolved+'</b></div></div>'+(rows||'<div class="meta">No competition rounds recorded.</div>')+(ordered.length>15?'<div class="meta">Showing the 15 most recent rounds.</div>':'')+'<div class="meta">Editing, scoring and reveal controls remain disabled until server-side access protections are deployed.</div></section>';
 }
+const wc2OriginalCompetitionOverview=competitionOverview;
+competitionOverview=function(){return wc2OriginalCompetitionOverview()+window.WC2CompetitionIntegration.render();};
+
 function livePage(){
  const s=state(),bySession=new Map();
  s.drams.forEach(d=>{const id=String(d['Session ID']||'');if(id)bySession.set(id,(bySession.get(id)||0)+1)});
@@ -441,6 +444,7 @@ function render(){
  bind();
 }
 function bind(){
+ window.WC2CompetitionIntegration.bind(root,toast);
  const liveCreateSession=document.getElementById('liveCreateSession');if(liveCreateSession)liveCreateSession.onclick=()=>{tab='Tastings';creatingSession=true;selectedSessionId=null;addingDram=false;render();window.scrollTo(0,0)};
  const liveAddDram=document.getElementById('liveAddDram');if(liveAddDram)liveAddDram.onclick=()=>{tab='Tastings';creatingSession=false;selectedSessionId=null;addingDram=true;selectedDramId=null;render();window.scrollTo(0,0)};
  document.querySelectorAll('[data-live-session]').forEach(el=>el.onclick=()=>{tab='Tastings';creatingSession=false;addingDram=false;selectedDramId=null;selectedSessionId=el.dataset.liveSession;render();window.scrollTo(0,0)});

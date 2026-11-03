@@ -221,6 +221,9 @@ function competitionOverview(){
  }).join('');
  return '<div class="sectionHead"><h2>Competition overview</h2></div><section class="card setup"><div class="meta">Competitions are separate from tasting sessions. Read-only history; blind answers and identities are never shown in this overview. The API is not yet blind-safe.</div><div class="detailList"><div><span>Recorded rounds</span><b>'+rounds.length+'</b></div><div><span>Blind rounds</span><b>'+blind+'</b></div><div><span>Revealed rounds</span><b>'+revealed+'</b></div><div><span>Revealed with missing links</span><b>'+unresolved+'</b></div></div>'+(rows||'<div class="meta">No competition rounds recorded.</div>')+(ordered.length>15?'<div class="meta">Showing the 15 most recent rounds.</div>':'')+'<div class="meta">Editing, scoring and reveal controls remain disabled until server-side access protections are deployed.</div></section>';
 }
+const wc2OriginalCompetitionOverview=competitionOverview;
+competitionOverview=function(){return wc2OriginalCompetitionOverview()+window.WC2CompetitionIntegration.render();};
+
 function livePage(){
  const s=state(),bySession=new Map();
  s.drams.forEach(d=>{const id=String(d['Session ID']||'');if(id)bySession.set(id,(bySession.get(id)||0)+1)});
@@ -347,7 +350,7 @@ function tastingsPage(){
  const unique=new Set(s.drams.map(d=>String(d['Whisky ID']||'').trim()).filter(Boolean));
  const scored=s.drams.map(d=>num(d['Score'])).filter(v=>v!==null);
  const heading=`<div class="topbar"><div><div class="title">Tastings</div><div class="sync">${sessions.length} sessions · ${unique.size} unique whiskies · ${s.drams.length} tasting records</div></div><button class="iconBtn" id="tastingsRefresh">↻</button></div>`;
- const tabs=`<div class="tastingCreateBar" style="display:flex;gap:8px"><button type="button" class="primary" id="addDramTop" style="flex:1;min-width:0;padding:9px 7px;font-size:13px">＋ Add Dram</button><button type="button" class="primary" id="createSession" style="flex:1;min-width:0;padding:9px 7px;font-size:13px">＋ Create Session</button></div><div class="segmented tastingTabs"><button data-tasting-view="sessions" class="${tastingView==='sessions'?'active':''}">Sessions</button><button data-tasting-view="drams" class="${tastingView==='drams'?'active':''}">All Drams</button></div>`;
+ const tabs=`<div class="tastingCreateBar" style="display:flex;gap:8px"><button type="button" class="primary" id="addDramTop" style="flex:1;min-width:0;padding:9px 7px;font-size:13px">＋ Add Dram</button><button type="button" class="primary" id="createSession" style="flex:1;min-width:0;padding:9px 7px;font-size:13px">＋ Create Session</button></div><div class="segmented tastingTabs"><button data-tasting-view="sessions" class="${tastingView==='sessions'?'active':''}">Sessions</button><button data-tasting-view="drams" class="${tastingView==='drams'?'active':''}">All Drams</button><button data-tasting-view="competition" class="${tastingView==='competition'?'active':''}">Competition</button></div>`;
  if(creatingSession)return `<div class="topbar"><button class="backBtn" id="cancelCreateSession">‹ Back</button><div class="title">Create Session</div></div><section class="card setup"><h3>New tasting session</h3><div class="editFields"><label>Date<input id="newSessionDate" type="date" value="${new Date().toLocaleDateString('en-CA')}"></label><label>Session name<input id="newSessionName" type="text" placeholder="e.g. Friday whisky tasting"></label><label>Session type<select id="newSessionType"><option>Home / Friends</option><option>Workshop</option><option>Festival / Event</option><option>Distillery</option><option>Bar / Venue</option><option>Other</option></select></label><label>Location<input id="newSessionLocation" type="text"></label><label>Companions<input id="newSessionCompanions" type="text" placeholder="Names separated by commas"></label><label>Blind tasting?<select id="newSessionBlind"><option value="No">No</option><option value="Yes">Yes</option></select></label><label>Notes<textarea id="newSessionNotes" rows="3"></textarea></label></div><button class="primary" id="saveNewSession">Create Session</button><button type="button" class="filterBtn" id="cancelCreateSessionBottom">Cancel</button></section>`;
  if(addingDram){const sess=selectedSessionId?allSessions.get(String(selectedSessionId)):null;const d={'Tasting Date':sess?dateInput(sess['Date']):new Date().toLocaleDateString('en-CA')};return `<div class="topbar"><button class="backBtn" id="cancelNewDram">‹ Back</button><div class="title">Add Dram</div></div>${tastingEditForm('dram',d)}`}
  if(selectedDramId){
@@ -375,6 +378,7 @@ function tastingsPage(){
   ${drams.map((d,i)=>`<div class="card tastingDram tastingDramCompact"><button type="button" class="tastingDramOpen" data-dram-id="${esc(d['Tasting ID'])}"><div class="eyebrow">#${esc(d['Dram #']||i+1)} · ${esc(distillery(d))}</div><strong>${esc(identity(d))}</strong><div class="tastingDramStats"><span>Score <b>${d['Score']!==''&&d['Score']!=null?esc(d['Score']):'—'}</b></span><span>Session rank <b>${esc(d['Session Rank']||'—')}</b></span></div>${dramDescriptorSummary(d)}<div class="meta">Notes: ${[d['Score'],d['Nose'],d['Palate'],d['Finish Character']||d['Finish Length'],d['Free Notes']].filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='').length}/5 fields</div></button>${wb(d)}</div>`).join('')||'<section class="card">No drams recorded.</section>'}`;
  }
  const q=tastingSearch.trim().toLowerCase();
+ if(tastingView==='competition') return `${heading}${tabs}${competitionOverview()}`;
  if(tastingView==='drams'){
   const f=dramFilters, all=s.drams, peat=v=>{const x=String(v??'').toLowerCase();return ['yes','true','peated','1'].includes(x)?'Peated':['no','false','unpeated','0'].includes(x)?'Unpeated':'Unknown'};
   const year=d=>{const v=String(d['Tasting Date']||allSessions.get(String(d['Session ID']))?.['Date']||'');const m=v.match(/(?:19|20)\d{2}/);return m?m[0]:''};
@@ -441,6 +445,7 @@ function render(){
  bind();
 }
 function bind(){
+ window.WC2CompetitionIntegration.bind(root,toast);
  const liveCreateSession=document.getElementById('liveCreateSession');if(liveCreateSession)liveCreateSession.onclick=()=>{tab='Tastings';creatingSession=true;selectedSessionId=null;addingDram=false;render();window.scrollTo(0,0)};
  const liveAddDram=document.getElementById('liveAddDram');if(liveAddDram)liveAddDram.onclick=()=>{tab='Tastings';creatingSession=false;selectedSessionId=null;addingDram=true;selectedDramId=null;render();window.scrollTo(0,0)};
  document.querySelectorAll('[data-live-session]').forEach(el=>el.onclick=()=>{tab='Tastings';creatingSession=false;addingDram=false;selectedDramId=null;selectedSessionId=el.dataset.liveSession;render();window.scrollTo(0,0)});

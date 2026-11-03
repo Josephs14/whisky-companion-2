@@ -1,4 +1,4 @@
-/* Competition 2.0 staging UI — uses the existing WC2 API and state. */
+/* Competition 2.0 production UI — uses the existing WC2 API and state. */
 (() => {
  'use strict';
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -31,18 +31,19 @@
    const deviation=numeric?fmt(average(differences),p==='ABV'?2:1)+(p==='ABV'?' pp':' years'):matched.length?fmt(100*(matched.length-exact)/matched.length)+'% mismatch':'—';
    return '<tr><td>'+p+'</td><td>'+deviation+'</td><td>'+(matched.length?fmt(100*exact/matched.length)+'%':'—')+'</td><td>'+fmt(average(scores))+'</td><td>'+scores.length+'</td></tr>';
   }).join('');
-  const kpi=(label,value)=>'<div class="card" style="padding:14px;min-width:130px;flex:1"><div class="meta">'+label+'</div><div style="font-size:1.5rem;font-weight:700">'+esc(value)+'</div></div>';
-  return '<section class="card setup" id="wc2CompetitionPanel"><h3>Competition 2.0</h3><p class="meta">Manage blind rounds and reveals</p>'+
+  const kpi=(label,value,icon)=>'<div style="border:1px solid var(--border,#d9dce2);border-radius:16px;padding:18px 16px;background:var(--card,#fff);min-width:0;box-shadow:0 2px 10px rgba(0,0,0,.035)"><div style="font-size:22px;margin-bottom:10px">'+icon+'</div><div style="font-size:clamp(22px,4vw,30px);font-weight:750;line-height:1.1">'+esc(value)+'</div><div class="meta" style="margin-top:7px">'+label+'</div></div>'; 
+  return '<div id="wc2CompetitionPanel"><section class="card setup" style="margin-bottom:22px"><h3>Competition controls</h3><p class="meta">Create, edit and reveal blind rounds</p>'+
    '<button type="button" class="filterBtn" data-wc2-toggle="wc2CompCreate" aria-expanded="false">+ New blind round</button><form id="wc2CompCreate" hidden><h4>New blind round</h4>'+field('Date',new Date().toISOString().slice(0,10),'date')+guesses()+'<button type="submit" class="primary">Create round</button></form>'+
    '<button type="button" class="filterBtn" data-wc2-toggle="wc2CompEdit" aria-expanded="false">Edit blind round</button><form id="wc2CompEdit" hidden><h4>Edit blind guesses</h4><label>Round<select name="roundId" required>'+roundOptions(blind)+'</select></label>'+guesses()+'<button type="submit" class="primary">Update guesses</button></form>'+
    '<button type="button" class="filterBtn" data-wc2-toggle="wc2CompReveal" aria-expanded="false">Reveal round</button><form id="wc2CompReveal" hidden><h4>Reveal round</h4><label>Round<select name="roundId" required>'+roundOptions(blind)+'</select></label>'+
    '<label>Search existing whisky<input name="whiskySearch" type="search" list="wc2WhiskyChoices" placeholder="Type distillery, expression or ID" required autocomplete="off"><datalist id="wc2WhiskyChoices">'+whiskies.map(w=>opt(whiskyLabel(w),whiskyLabel(w))).join('')+'</datalist></label>'+
    field('Actual Region')+field('Actual Distillery')+field('Actual Age','','number')+field('Actual ABV','','number')+
    '<button type="submit" class="primary">Preview and reveal</button></form>'+
-   '<h4>Competition KPIs</h4><div style="display:flex;flex-wrap:wrap;gap:10px">'+kpi('Total rounds',rounds.length)+kpi('Revealed',revealed.length)+kpi('Blind',blind.length)+kpi('Average score',avg)+kpi('Best score',best)+'</div>'+ 
-   '<h4>Parameter analysis</h4><div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Parameter</th><th>Avg deviation</th><th>Exact match</th><th>Avg score</th><th>Scored rounds</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+ 
+   '<p class="meta">Reveal uses an existing whisky; no Competition Dram is required.</p></section>'+ 
+   '<section class="card setup" style="margin-top:20px"><h3>Competition performance</h3><p class="meta">Your results across revealed competition rounds</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px;margin:16px 0 22px">'+kpi('Total rounds',rounds.length,'🏁')+kpi('Revealed',revealed.length,'✓')+kpi('Blind',blind.length,'◈')+kpi('Average score',avg,'◎')+kpi('Best score',best,'★')+'</div>'+ 
+   '<h4 style="margin-top:18px">Parameter analysis</h4><div style="overflow-x:auto;border:1px solid var(--border,#ddd);border-radius:12px;padding:8px"><table style="width:100%;text-align:left;border-collapse:separate;border-spacing:0 12px"><thead><tr><th>Parameter</th><th>Avg deviation</th><th>Exact match</th><th>Avg score</th><th>Scored rounds</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+ 
    '<p class="meta">Age deviation in years; ABV deviation in percentage points. Region and Distillery show mismatch rates. Average parameter scores use stored score columns when available; — means unavailable. Revealed rounds only.</p>'+ 
-   '<p class="meta">Reveal uses an existing whisky; no Competition Dram is required.</p></section>';
+   '</section></div>';
  }
  async function request(action,payload){const r=await window.WC2.api(action,payload);return r;}
  async function submit(form,notify,work){

@@ -17,6 +17,20 @@
   const scores=revealed.map(r=>Number(r['Competition Score'])).filter(Number.isFinite);
   const avg=scores.length?(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1):'—';
   const best=scores.length?Math.max(...scores).toFixed(1):'—';
+  const filled=v=>v!==null&&v!==undefined&&String(v).trim()!=='';
+  const num=v=>filled(v)&&Number.isFinite(Number(v))?Number(v):null;
+  const average=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const fmt=(n,d=1)=>n===null?'—':n.toFixed(d);
+  const parameters=['Region','Distillery','Age','ABV'];
+  const rows=parameters.map(p=>{
+   const matched=revealed.filter(r=>filled(r['Guess '+p])&&filled(r['Actual '+p]));
+   const exact=matched.filter(r=>String(r['Guess '+p]).trim().toLowerCase()===String(r['Actual '+p]).trim().toLowerCase()).length;
+   const numeric=p==='Age'||p==='ABV';
+   const differences=numeric?matched.map(r=>{const a=num(r['Guess '+p]),b=num(r['Actual '+p]);return a===null||b===null?null:Math.abs(a-b)}).filter(x=>x!==null):[];
+   const scores=revealed.map(r=>{const key=[p+' Score','Score '+p,p+' Points','Points '+p].find(k=>num(r[k])!==null);return key?num(r[key]):null}).filter(x=>x!==null);
+   const deviation=numeric?fmt(average(differences),p==='ABV'?2:1)+(p==='ABV'?' pp':' years'):matched.length?fmt(100*(matched.length-exact)/matched.length)+'% mismatch':'—';
+   return '<tr><td>'+p+'</td><td>'+deviation+'</td><td>'+(matched.length?fmt(100*exact/matched.length)+'%':'—')+'</td><td>'+fmt(average(scores))+'</td><td>'+scores.length+'</td></tr>';
+  }).join('');
   const kpi=(label,value)=>'<div class="card" style="padding:14px;min-width:130px;flex:1"><div class="meta">'+label+'</div><div style="font-size:1.5rem;font-weight:700">'+esc(value)+'</div></div>';
   return '<section class="card setup" id="wc2CompetitionPanel"><h3>Competition 2.0</h3><p class="meta">Manage blind rounds and reveals</p>'+
    '<button type="button" class="filterBtn" data-wc2-toggle="wc2CompCreate" aria-expanded="false">+ New blind round</button><form id="wc2CompCreate" hidden><h4>New blind round</h4>'+field('Date',new Date().toISOString().slice(0,10),'date')+guesses()+'<button type="submit" class="primary">Create round</button></form>'+
@@ -26,6 +40,8 @@
    field('Actual Region')+field('Actual Distillery')+field('Actual Age','','number')+field('Actual ABV','','number')+
    '<button type="submit" class="primary">Preview and reveal</button></form>'+
    '<h4>Competition KPIs</h4><div style="display:flex;flex-wrap:wrap;gap:10px">'+kpi('Total rounds',rounds.length)+kpi('Revealed',revealed.length)+kpi('Blind',blind.length)+kpi('Average score',avg)+kpi('Best score',best)+'</div>'+ 
+   '<h4>Parameter analysis</h4><div style="overflow-x:auto"><table style="width:100%;text-align:left"><thead><tr><th>Parameter</th><th>Avg deviation</th><th>Exact match</th><th>Avg score</th><th>Scored rounds</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+ 
+   '<p class="meta">Age deviation in years; ABV deviation in percentage points. Region and Distillery show mismatch rates. Average parameter scores use stored score columns when available; — means unavailable. Revealed rounds only.</p>'+ 
    '<p class="meta">Reveal uses an existing whisky; no Competition Dram is required.</p></section>';
  }
  async function request(action,payload){const r=await window.WC2.api(action,payload);return r;}

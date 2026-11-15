@@ -45,3 +45,29 @@
 .dramDescriptorLine{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0;font-size:12px;text-align:left}.dramDescriptorLine>span:first-child{font-weight:700;min-width:43px;color:var(--muted,#6b7280)}.dramDescriptorTag{display:inline-block;border:1px solid #e2cbb7;border-radius:999px;background:#fff6ec;color:#78451e;padding:3px 8px;font-size:11px;font-weight:650}
 
 .tastingCreateBar{margin:14px 0 12px}.tastingCreateBar .primary{display:block;width:100%;min-height:48px;font-size:15px;font-weight:750}
+
+
+/* Insights: compact mobile-first navigation and metrics */
+.wc2-insights{min-width:0;max-width:100%;padding-bottom:16px}
+.wc2-insights .wc2-ins-tabs{display:grid;align-items:stretch;gap:4px;width:100%;box-sizing:border-box;background:#ede7df;border-radius:16px;padding:5px;margin:12px 0 14px;overflow:hidden}
+.wc2-insights .wc2-ins-tabs button{min-width:0;width:100%;border:0;border-radius:12px;background:transparent;color:#716d68;font:inherit;font-size:12px;font-weight:650;padding:11px 3px;line-height:1.2;white-space:normal;overflow-wrap:normal;cursor:pointer}
+.wc2-insights .wc2-ins-tabs button.active{background:#fff;color:#201d1a;box-shadow:0 2px 8px rgba(45,35,22,.08)}
+.wc2-insights .wc2-ins-section{grid-template-columns:repeat(5,minmax(0,1fr));margin-top:16px}
+.wc2-insights .wc2-ins-section button{font-size:clamp(9px,2.6vw,13px);padding:12px 1px;letter-spacing:-.15px}
+.wc2-insights .wc2-ins-screen{grid-template-columns:repeat(4,minmax(0,1fr))}
+.wc2-insights .wc2-ins-scope,.wc2-insights .wc2-ins-unit{grid-template-columns:repeat(2,minmax(0,1fr));max-width:100%}
+.wc2-insights .wc2-ins-dimension{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:4px}
+.wc2-insights .wc2-ins-dimension::-webkit-scrollbar{display:none}
+.wc2-insights .wc2-ins-dimension button{width:auto;flex:0 0 auto;padding:10px 12px;white-space:nowrap}
+.wc2-insights .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0 16px}
+.wc2-insights .kpis .card{min-width:0;min-height:0;padding:15px 14px;border-radius:16px;box-sizing:border-box}
+.wc2-insights .kpis .value{font-size:clamp(24px,7vw,34px);line-height:1.2;margin-top:5px}
+.wc2-insights .kpis .meta{font-size:12px;line-height:1.3}
+.wc2-insights .card.setup{padding:17px 16px;margin:12px 0;border-radius:17px}
+.wc2-insights .card.setup h3{font-size:17px;line-height:1.35;margin:0 0 13px}
+.wc2-insights .detailList>div{padding:11px 3px;font-size:13px;align-items:center}
+.wc2-insights .detailList span{min-width:0;overflow-wrap:anywhere}
+.wc2-insights .detailList b{flex-shrink:0}
+.wc2-insights .wc2-ins-bar{padding:4px 0;font-size:13px}
+.wc2-insights .topbar{margin-bottom:8px}
+@media(max-width:370px){.wc2-insights .wc2-ins-section button{font-size:9px}.wc2-insights .wc2-ins-screen button{font-size:10px}.wc2-insights .card.setup{padding:14px 12px}}

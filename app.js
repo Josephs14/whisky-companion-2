@@ -444,12 +444,13 @@ function tastingsPage(){
 }
 function render(){
  const hasToken=!!(localStorage.getItem('wc2ApiToken') || sessionStorage.getItem('wc2ApiToken') || window.WC2_API_TOKEN);
- let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?livePage():tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):tab==='Insights'?insightsPage():generic('Insights','This section is being developed.');
+ let body=!hasToken?setup():tab==='AddBottle'?addBottlePage():tab==='Home'?home():tab==='Collection'?collection():tab==='Tastings'?tastingsPage():tab==='Live'?livePage():tab==='Trip'?generic('Scotland Trip 2026','Itinerary, distilleries, tastings, buying targets, purchases and trip notes will live here.'):tab==='Insights'?(window.WC2Insights?WC2Insights.render(state(),insightsPage):insightsPage()):generic('Insights','This section is being developed.');
  root.innerHTML=`<main class="shell">${body}</main>${hasToken?bottom():''}`;
  bind();
 }
 function bind(){
  window.WC2CompetitionIntegration.bind(root,toast);
+ if(window.WC2Insights)WC2Insights.bind(root,render);
  const liveCreateSession=document.getElementById('liveCreateSession');if(liveCreateSession)liveCreateSession.onclick=()=>{tab='Tastings';creatingSession=true;selectedSessionId=null;addingDram=false;render();window.scrollTo(0,0)};
  const liveAddDram=document.getElementById('liveAddDram');if(liveAddDram)liveAddDram.onclick=()=>{tab='Tastings';creatingSession=false;selectedSessionId=null;addingDram=true;selectedDramId=null;render();window.scrollTo(0,0)};
  document.querySelectorAll('[data-live-session]').forEach(el=>el.onclick=()=>{tab='Tastings';creatingSession=false;addingDram=false;selectedDramId=null;selectedSessionId=el.dataset.liveSession;render();window.scrollTo(0,0)});

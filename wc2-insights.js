@@ -7,7 +7,7 @@ const isCurrent=b=>!/^finished$/i.test(id(b.Status));
 const date=x=>{if(typeof x==='number')return new Date(Date.UTC(1899,11,30)+x*86400000);const s=id(x);if(!s)return null;const d=new Date(s);return isNaN(+d)?null:d};
 const bar=(name,count,max,total,click='')=>'<div class="wc2-ins-bar" '+(click?'data-wc2-detail="'+esc(click)+'" role="button" tabindex="0"':'')+'><div style="display:flex;justify-content:space-between;gap:8px"><span>'+esc(name)+'</span><b>'+count+' <small style="opacity:.6">('+((count/Math.max(1,total))*100).toFixed(1)+'%)</small></b></div><div style="background:#e9e4dc;height:9px;border-radius:8px;margin:6px 0 13px"><div style="width:'+(100*count/Math.max(1,max))+'%;background:#8b714f;height:100%;border-radius:8px"></div></div></div>';
 const kpi=(label,value)=>'<div class="card kpi"><div class="meta">'+esc(label)+'</div><div class="value">'+esc(value)+'</div></div>';
-const controls=(items,active,attr)=>'<div style="display:flex;gap:6px;overflow-x:auto;padding:5px 0 10px">'+items.map(v=>'<button style="white-space:nowrap;flex-shrink:0" class="'+(v===active?'primary':'secondary')+'" data-wc2-'+attr+'="'+esc(v)+'">'+esc(v)+'</button>').join('')+'</div>';
+const controls=(items,active,attr)=>'<div class="segmented wc2-ins-tabs wc2-ins-'+attr+'" role="tablist" aria-label="'+esc(attr)+'">'+items.map(v=>'<button type="button" role="tab" aria-selected="'+(v===active?'true':'false')+'" class="'+(v===active?'active':'')+'" data-wc2-'+attr+'="'+esc(v)+'">'+esc(v)+'</button>').join('')+'</div>';
 const countBy=(records,wi,field,transform)=>{const m=new Map();for(const r of records){const w=wi.get(id(r['Whisky ID']))||{};let v=transform?transform(w[field],w):id(w[field])||'Unknown';m.set(v,(m.get(v)||0)+1)}return [...m].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))};
 const cask=x=>{const v=id(x).toLowerCase();if(!v)return 'Unknown';if(/sauternes|port|rioja|wine|pinot|amarone|red wine|white wine|barolo|marsala|madeira|champagne|moscatel/.test(v))return 'Wine';if(/sherry|oloroso|pedro xim|\bpx\b|fino|amontillado/.test(v))return 'Sherry';if(/bourbon|virgin oak|american oak/.test(v))return 'Bourbon';if(/rum/.test(v))return 'Rum';return 'Other'};
 const caskDetail=x=>{const v=id(x);if(!v)return 'Unknown';const match=v.match(/sauternes|port|rioja|pinot noir|amarone|oloroso|pedro ximenez|\bPX\b|fino|amontillado|bourbon|rum|madeira|barolo|moscatel/i);return match?match[0].replace(/^./,c=>c.toUpperCase()):v};
@@ -19,8 +19,8 @@ function render(s,legacy){
  const all=s.bottles||[], current=all.filter(isCurrent), bottles=scope==='Current'?current:all;
  const unique=arr=>[...new Map(arr.filter(b=>wi.has(id(b['Whisky ID']))).map(b=>[id(b['Whisky ID']),b])).values()];
  const selected=unit==='Bottles'?bottles:unique(bottles);
- const cards='<div class="topbar"><div><div class="title">Insights</div><div class="sync">Your whisky collection and tasting analytics</div></div><button class="iconBtn" id="insightsRefresh" aria-label="Refresh insights">↻</button></div>'+controls(['Collection','Drams','Sessions','Consumption','Purchases'],section,'section');
- if(section!=='Collection')return cards+(section==='Drams'?legacy():'<section class="card setup"><h3>'+esc(section)+'</h3><p class="meta">Coming in the next Insights development phase.</p></section>');
+ const cards='<div class="wc2-insights"><div class="topbar"><div><div class="title">Insights</div><div class="sync">Your whisky collection and tasting analytics</div></div><button class="iconBtn" id="insightsRefresh" aria-label="Refresh insights">↻</button></div>'+controls(['Collection','Drams','Sessions','Consumption','Purchases'],section,'section');
+ if(section!=='Collection')return cards+(section==='Drams'?legacy():'<section class="card setup"><h3>'+esc(section)+'</h3><p class="meta">Coming in the next Insights development phase.</p></section>')+'</div>';
  let html=cards+controls(['Overview','Composition','Distilleries','History'],screen,'screen');
  html+=controls(['Current','All-time'],scope,'scope');
  if(screen==='Overview'){
@@ -62,7 +62,7 @@ function render(s,legacy){
  html+=history.map(r=>'<div class="detailList"><div><span>'+r.y+'</span><b>'+r.active+' active · '+r.acquired+' ever owned · '+r.done+' finished</b></div></div>').join('')||'<p class="meta">No dated acquisition records available.</p>';
  html+='</section>'+(unknown?'<p class="meta">'+unknown+' bottle records have missing or unrecognized acquisition dates and are excluded from historical timelines.</p>':'');
  }
- return html;
+ return html+'</div>';
 }
 function bind(root,refresh){root.querySelectorAll('[data-wc2-section],[data-wc2-screen],[data-wc2-scope],[data-wc2-unit],[data-wc2-dimension],[data-wc2-detail],[data-wc2-back]').forEach(el=>{el.onclick=()=>{const d=el.dataset;if(d.wc2Section){section=d.wc2Section;detail=''}if(d.wc2Screen){screen=d.wc2Screen;detail=''}if(d.wc2Scope)scope=d.wc2Scope;if(d.wc2Unit)unit=d.wc2Unit;if(d.wc2Dimension){dimension=d.wc2Dimension;detail=''}if(d.wc2Detail)detail=d.wc2Detail;if(d.wc2Back)detail='';refresh()};if(el.hasAttribute('tabindex'))el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click()}}})}
 window.WC2Insights={render,bind};

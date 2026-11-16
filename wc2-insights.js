@@ -35,7 +35,7 @@ function render(s,legacy){
  html+='<section class="card setup"><h3>Historical snapshot</h3><div class="detailList"><div><span>Finished bottles ever</span><b>'+finished+'</b></div><div><span>Unique whiskies ever owned</span><b>'+unique(all).length+'</b></div></div></section>';
  }
  if(screen==='Composition'){
- const dimensions=['Region','Cask Type','Age','ABV','Peat','Release Type','Whisky Type','Bottler'];
+ const dimensions=['Region','Cask Type','Age','ABV','Peat','Bottler'];
  html+=controls(['Bottles','Whiskies'],unit,'unit')+controls(dimensions,dimension,'dimension');
  const field={'Region':'Region','Cask Type':'Cask Type / Maturation','Age':'Age','ABV':'ABV %','Peat':'Peated','Release Type':'Release Type','Whisky Type':'Whisky Type','Bottler':'Bottler'}[dimension];
  const transform=dimension==='Cask Type'?(x=>detail?caskDetail(x):cask(x)):dimension==='Age'?age:dimension==='ABV'?abv:dimension==='Peat'?peat:null;

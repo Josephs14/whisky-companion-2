@@ -13,6 +13,7 @@ const norm=x=>S(x).toLowerCase();
 function classify(s){
  const type=norm(s['Session Type']),name=norm(s['Session Name']),club=norm(s['Workshop Group']||s.Club||s.Organization||s.Organizer||s['Tasting Group']),combined=[type,name,club].join(' ');
  if(/\bcsfc\b|cask strength fan club/.test(combined))return 'CSFC Workshops';
+ if(club==='bar')return 'Bar';
  if(club==='other workshop'||/workshop|masterclass/.test(type))return 'Other Workshops';
  if(/home|friends|private|casual/.test(type))return 'Home / Friends';
  return 'Other / Unknown';
@@ -44,7 +45,7 @@ function data(s){
  const ds=drams.get(S(x['Session ID']))||[],scored=ds.map(d=>num(d.Score)).filter(n=>n!==null&&n>=0&&n<=100),when=date(x.Date);
  return {s:x,id:S(x['Session ID']),when,year:when?String(when.getUTCFullYear()):null,drams:ds.length,scored:scored.length,score:mean(scored),completed:norm(x.Status)==='completed',type:classify(x),format:format(x),focus:featured(x),theme:theme(x)};
  })}
-const typeNames=['CSFC Workshops','Other Workshops','Home / Friends','Other / Unknown'];
+const typeNames=['CSFC Workshops','Other Workshops','Bar','Home / Friends','Other / Unknown'];
 function summarize(items){const scored=items.filter(x=>x.score!==null);return {sessions:items.length,drams:items.reduce((a,x)=>a+x.drams,0),scored:items.reduce((a,x)=>a+x.scored,0),completed:items.filter(x=>x.completed).length,average:mean(scored.map(x=>x.score))}}
 const pct=(a,b)=>b?(100*a/b).toFixed(1)+'%':'—';
 function sessionList(items){return '<div class="detailList">'+items.slice().sort((a,b)=>(b.when||0)-(a.when||0)).slice(0,80).map(x=>'<div><span>'+E(S(x.s['Session Name'])||x.s['Session Type']||'Session')+'<small class="meta"> · '+E(x.when?x.when.toISOString().slice(0,10):'Date unknown')+' · '+E(x.s.Location||'Location unknown')+'</small></span><b>'+x.drams+' drams · '+(x.completed?'Completed':'Incomplete')+'</b></div>').join('')+'</div>'+(items.length>80?'<p class="meta">Showing the first 80 sessions.</p>':'')}

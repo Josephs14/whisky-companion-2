@@ -20,7 +20,7 @@ function render(s,legacy){
  const unique=arr=>[...new Map(arr.filter(b=>wi.has(id(b['Whisky ID']))).map(b=>[id(b['Whisky ID']),b])).values()];
  const selected=unit==='Bottles'?bottles:unique(bottles);
  const cards='<div class="wc2-insights"><div class="topbar"><div><div class="title">Insights</div><div class="sync">Your whisky collection and tasting analytics</div></div><button class="iconBtn" id="insightsRefresh" aria-label="Refresh insights">↻</button></div>'+controls(['Collection','Drams','Sessions','Consumption','Purchases'],section,'section');
- if(section!=='Collection')return cards+(section==='Drams'&&window.WC2DramsInsights?WC2DramsInsights.render(s):'<section class="card setup"><h3>'+esc(section)+'</h3><p class="meta">Coming in the next Insights development phase.</p></section>')+'</div>';
+ if(section!=='Collection')return cards+(section==='Drams'&&window.WC2DramsInsights?WC2DramsInsights.render(s):section==='Sessions'&&window.WC2SessionsInsights?WC2SessionsInsights.render(s):'<section class="card setup"><h3>'+esc(section)+'</h3><p class="meta">Coming in the next Insights development phase.</p></section>')+'</div>';
  let html=cards+controls(['Overview','Composition','Distilleries','History'],screen,'screen');
  html+=controls(['Current','All-time'],scope,'scope');
  if(screen==='Overview'){
@@ -64,6 +64,6 @@ function render(s,legacy){
  }
  return html+'</div>';
 }
-function bind(root,refresh){if(section==='Drams'&&window.WC2DramsInsights)WC2DramsInsights.bind(root,refresh);root.querySelectorAll('[data-wc2-section],[data-wc2-screen],[data-wc2-scope],[data-wc2-unit],[data-wc2-dimension],[data-wc2-detail],[data-wc2-back]').forEach(el=>{el.onclick=()=>{const d=el.dataset;if(d.wc2Section){section=d.wc2Section;detail=''}if(d.wc2Screen){screen=d.wc2Screen;detail=''}if(d.wc2Scope)scope=d.wc2Scope;if(d.wc2Unit)unit=d.wc2Unit;if(d.wc2Dimension){dimension=d.wc2Dimension;detail=''}if(d.wc2Detail)detail=d.wc2Detail;if(d.wc2Back)detail='';refresh()};if(el.hasAttribute('tabindex'))el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click()}}})}
+function bind(root,refresh){if(section==='Drams'&&window.WC2DramsInsights)WC2DramsInsights.bind(root,refresh);if(section==='Sessions'&&window.WC2SessionsInsights)WC2SessionsInsights.bind(root,refresh);root.querySelectorAll('[data-wc2-section],[data-wc2-screen],[data-wc2-scope],[data-wc2-unit],[data-wc2-dimension],[data-wc2-detail],[data-wc2-back]').forEach(el=>{el.onclick=()=>{const d=el.dataset;if(d.wc2Section){section=d.wc2Section;detail=''}if(d.wc2Screen){screen=d.wc2Screen;detail=''}if(d.wc2Scope)scope=d.wc2Scope;if(d.wc2Unit)unit=d.wc2Unit;if(d.wc2Dimension){dimension=d.wc2Dimension;detail=''}if(d.wc2Detail)detail=d.wc2Detail;if(d.wc2Back)detail='';refresh()};if(el.hasAttribute('tabindex'))el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click()}}})}
 window.WC2Insights={render,bind};
 })();

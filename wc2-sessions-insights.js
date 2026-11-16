@@ -14,7 +14,9 @@ function classify(s){
  const type=norm(s['Session Type']),name=norm(s['Session Name']),club=norm(s['Workshop Group']||s.Club||s.Organization||s.Organizer||s['Tasting Group']),combined=[type,name,club].join(' ');
  if(/\bcsfc\b|cask strength fan club/.test(combined))return 'CSFC Workshops';
  if(club==='bar')return 'Bar';
- if(club==='other workshop'||/workshop|masterclass/.test(type))return 'Other Workshops';
+ if(club==='other workshop')return 'Other Workshops';
+ if(club==='not applicable')return /home|friends|private|casual/.test(type)?'Home / Friends':'Other / Unknown';
+ if(/workshop|masterclass/.test(type))return 'Other Workshops';
  if(/home|friends|private|casual/.test(type))return 'Home / Friends';
  return 'Other / Unknown';
 }

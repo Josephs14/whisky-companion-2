@@ -11,18 +11,18 @@ const list=rows=>'<div class="detailList">'+rows.map(([a,b])=>'<div><span>'+E(a)
 const bars=(rows,maximum)=>rows.map(x=>'<div class="wc2-ins-bar" '+(x.detail?'data-si-detail="'+E(x.detail)+'" role="button" tabindex="0"':'')+'><div class="wc2-di-bar-label"><span>'+E(x.name)+'</span><b>'+E(x.value)+'</b></div><div class="wc2-di-track"><div style="width:'+(100*x.size/Math.max(1,maximum)).toFixed(1)+'%"></div></div></div>').join('');
 const norm=x=>S(x).toLowerCase();
 function classify(s){
- const type=norm(s['Session Type']),name=norm(s['Session Name']),club=norm(s.Club||s.Organization||s.Organizer||s['Tasting Group']),combined=[type,name,club].join(' ');
+ const type=norm(s['Session Type']),name=norm(s['Session Name']),club=norm(s['Workshop Group']||s.Club||s.Organization||s.Organizer||s['Tasting Group']),combined=[type,name,club].join(' ');
  if(/\bcsfc\b|cask strength fan club/.test(combined))return 'CSFC Workshops';
- if(/workshop|masterclass/.test(type))return 'Other Workshops';
+ if(club==='other workshop'||/workshop|masterclass/.test(type))return 'Other Workshops';
  if(/home|friends|private|casual/.test(type))return 'Home / Friends';
  return 'Other / Unknown';
 }
 function format(s){
- const raw=norm(s['Tasting Format']||s.Format||s['Tasting Type']),type=norm(s['Session Type']),name=norm(s['Session Name']);
+ const raw=norm(s['Tasting Format']||s.Format||s['Tasting Type']),type=norm(s['Session Type']),name=norm(s['Session Name']),blind=norm(s['Blind?']);
  const t=[raw,type].join(' ');
  if(/vertical/.test(t))return 'Vertical';
- if(/blind/.test(t)||(!raw&&/blind/.test(name)))return 'Blind';
- if(/open|non.blind/.test(t))return 'Open';
+ if(/blind/.test(t)||(!raw&&(blind==='yes'||/blind/.test(name))))return 'Blind';
+ if(/open|non.blind/.test(t)||(!raw&&blind==='no'))return 'Open';
  return 'Other / Unknown';
 }
 function featured(s){
